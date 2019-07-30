@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='debussy',
-    version='0.1.0',
+    version='0.2.0',
     url='https://dotzmkt.visualstudio.com/DotzBigData/_git/debussy',
     author='Eduardo Tenório',
     author_email={
