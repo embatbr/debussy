@@ -17,8 +17,17 @@ class SlackOperator(SlackWebhookOperator):
             task_id='slack_{}_alert'.format(name),
             http_conn_id=self.slack_conn_id,
             webhook_token=slack_webhook_token,
-            message=slack_msg,
             username='airflow',
             *args,
             **kwargs
         )
+
+        self.slack_msg = slack_msg
+
+    def execute(self, context):
+        dag_id = context['task'].dag_id
+        task_id = context['task'].task_id
+
+        self.message = 'DAG: {}\nTask: {}\n*{}*'.format(dag_id, task_id, self.slack_msg)
+
+        SlackWebhookOperator.execute(self, context)

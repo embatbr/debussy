@@ -5,7 +5,7 @@ from airflow.models import BaseOperator
 
 class BasicOperator(BaseOperator):
 
-    def __init__(self, phase, step, function, *args, **kwargs):
+    def __init__(self, phase, step, *args, **kwargs):
         BaseOperator.__init__(
             self,
             task_id='{}_{}'.format(step, phase),
@@ -16,20 +16,17 @@ class BasicOperator(BaseOperator):
         self.phase = phase
         self.step = step
 
-        self.function = function
-
     def execute(self, context):
-        self.function(context)
+        pass
 
 
 class StartOperator(BasicOperator):
 
-    def __init__(self, phase, function, *args, **kwargs):
+    def __init__(self, phase, *args, **kwargs):
         BasicOperator.__init__(
             self,
             phase=phase,
             step='begin',
-            function=function,
             *args,
             **kwargs
         )
@@ -37,12 +34,11 @@ class StartOperator(BasicOperator):
 
 class FinishOperator(BasicOperator):
 
-    def __init__(self, phase, function, *args, **kwargs):
+    def __init__(self, phase, *args, **kwargs):
         BasicOperator.__init__(
             self,
             phase=phase,
             step='end',
-            function=function,
             *args,
             **kwargs
         )
