@@ -8,7 +8,7 @@ class SlackOperator(SlackWebhookOperator):
 
     SLACK_CONN_ID = 'slack_id'
 
-    def __init__(self, name, slack_msg, slack_conn_id=None, *args, **kwargs):
+    def __init__(self, env_level, name, slack_msg='', slack_conn_id=None, *args, **kwargs):
         self.slack_conn_id = slack_conn_id or self.SLACK_CONN_ID
         slack_webhook_token = BaseHook.get_connection(self.slack_conn_id).password
 
@@ -22,18 +22,21 @@ class SlackOperator(SlackWebhookOperator):
             **kwargs
         )
 
+        self.env_level = env_level
         self.slack_msg = slack_msg
 
     def execute(self, context):
         self.message = """
+            *[{env_level}]*
             *Dag:* {dag}
             *Task:* {task}
-            *Scheduled Datetime:* {scheduler_exec_date}
+            *Scheduled:* {scheduler_exec_date}
 
             {message}
 
             *Log Url:* {log_url}
             """.format(
+                env_level=self.env_level,
                 dag=context.get('task_instance').dag_id,
                 task=context.get('task_instance').task_id,
                 scheduler_exec_date=context.get('execution_date'),
