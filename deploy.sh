@@ -5,6 +5,7 @@ export PROJECT_ROOT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd ${PROJECT_ROOT_PATH}
 
 
+rm -Rf ${PROJECT_ROOT_PATH}/../dotzpay/composer/dags/debussy
 cp -R debussy ${PROJECT_ROOT_PATH}/../dotzpay/composer/dags
 
 

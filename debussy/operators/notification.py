@@ -25,9 +25,20 @@ class SlackOperator(SlackWebhookOperator):
         self.slack_msg = slack_msg
 
     def execute(self, context):
-        dag_id = context['task'].dag_id
-        task_id = context['task'].task_id
+        self.message = """
+            *Dag:* {dag}
+            *Task:* {task}
+            *Scheduled Datetime:* {scheduler_exec_date}
 
-        self.message = 'DAG: {}\nTask: {}\n*{}*'.format(dag_id, task_id, self.slack_msg)
+            {message}
+
+            *Log Url:* {log_url}
+            """.format(
+                dag=context.get('task_instance').dag_id,
+                task=context.get('task_instance').task_id,
+                scheduler_exec_date=context.get('execution_date'),
+                message=self.slack_msg,
+                log_url=context.get('task_instance').log_url,
+            )
 
         SlackWebhookOperator.execute(self, context)
