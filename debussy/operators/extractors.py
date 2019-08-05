@@ -36,7 +36,7 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
 
-    def __init__(self, project, env_level, config, table, db_conn_data, *args, **kwargs):
+    def __init__(self, project, env_level, config, table, db_conn_data, bq_sink, *args, **kwargs):
         self.table = table
 
         kwargs.update({
@@ -50,7 +50,7 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
                 'username': db_conn_data['user'],
                 'password': db_conn_data['password'],
                 'query': "SELECT 1",
-                'bigQuerySink': '{}_RAW_CONDUCTOR.{}'.format(env_level.upper(), self.table)
+                'bigQuerySink': bq_sink
             }
         })
 

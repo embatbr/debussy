@@ -10,4 +10,4 @@ cp -R debussy ${PROJECT_ROOT_PATH}/../dotzpay/composer/dags
 
 
 # python setup.py bdist_egg
-# cp dist/debussy-0.4.0-py3.6.egg ../dotzpay/composer/dags/debussy.egg
+# cp dist/debussy-0.4.1-py3.6.egg ../dotzpay/composer/dags/debussy.egg
