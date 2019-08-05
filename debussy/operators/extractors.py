@@ -60,7 +60,7 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
         hook = GoogleCloudStorageHook()
         objs = hook.download(
             self.config['bucket_name'],
-            '{}/{}.json'.format(self.config['schemas_path'], self.table)
+            '{}/{}.json'.format(self.config['schemas_raw_path'], self.table)
         )
         objs = json.loads(objs)
 
