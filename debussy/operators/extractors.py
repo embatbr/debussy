@@ -22,7 +22,7 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
         DataflowTemplateOperator.__init__(
             self,
-            task_id='{}-{}-extract-{}'.format(project, self.env_level, task_id_sufix),
+            task_id='extract-{}'.format(task_id_sufix),
             template=template_location,
             parameters=parameters,
             poll_sleep=60,
@@ -40,7 +40,7 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
         self.table = table
 
         kwargs.update({
-            'task_id_sufix': self.table.lower(),
+            'task_id_sufix': 'table-{}'.format(self.table.lower()),
             'parameters': {
                 'project': project,
                 'driverClassName': 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
