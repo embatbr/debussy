@@ -135,8 +135,4 @@ FROM
         converted_fields = ",\n    ".join(converted_fields)
         self.sql_template_params['source_table_fields_converted'] = converted_fields
 
-        print()
-        print(self.sql)
-        print()
-
         BigQueryTableOperator.execute(self, context)
