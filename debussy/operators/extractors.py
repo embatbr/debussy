@@ -36,14 +36,15 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
 
-    def __init__(self, project, env_level, config, table, db_conn_data, bq_sink, *args, **kwargs):
+    def __init__(self, project, env_level, config, table, driver_class_name, db_conn_data,
+        bq_sink, *args, **kwargs):
         self.table = table
 
         kwargs.update({
             'task_id_sufix': 'table-{}'.format(self.table.lower()),
             'parameters': {
                 'project': project,
-                'driverClassName': 'com.microsoft.sqlserver.jdbc.SQLServerDriver',
+                'driverClassName': driver_class_name,
                 'jdbcUrl': 'jdbc:sqlserver://{host}:{port};databaseName={dbname}'.format(
                     **db_conn_data
                 ),

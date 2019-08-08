@@ -10,14 +10,14 @@ class BigQueryTableOperator(BigQueryOperator):
 
     def __init__(self, project, env_level, table, sql_template_params, *args, **kwargs):
         self.project = project
-        self.env_level = env_level#.upper()
+        self.env_level = env_level
         self.table = table
         self.sql_template_params = sql_template_params
 
         BigQueryOperator.__init__(
             self,
             task_id='{}-table-{}'.format(self.operation, self.table),
-            sql='SELECT 1', # None is not allowed, what makes no sense
+            sql='SELECT 1',
             allow_large_results=True,
             use_legacy_sql=False,
             *args,
