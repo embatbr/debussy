@@ -20,4 +20,4 @@ cp -R debussy ${PROJECT_ROOT_PATH}/../${TARGET_PATH}/dags
 
 
 # python setup.py bdist_egg
-# cp dist/debussy-1.0.1-py3.6.egg ../${TARGET_PATH}/dags/debussy.egg
+# cp dist/debussy-1.1.0-py3.6.egg ../${TARGET_PATH}/dags/debussy.egg
