@@ -10,13 +10,11 @@ class SlackOperator(SlackWebhookOperator):
 
     def __init__(self, env_level, name, slack_msg='', slack_conn_id=None, *args, **kwargs):
         self.slack_conn_id = slack_conn_id or self.SLACK_CONN_ID
-        slack_webhook_token = BaseHook.get_connection(self.slack_conn_id).password
 
         SlackWebhookOperator.__init__(
             self,
             task_id='slack_{}_alert'.format(name),
             http_conn_id=self.slack_conn_id,
-            webhook_token=slack_webhook_token,
             username='airflow',
             *args,
             **kwargs
@@ -26,6 +24,8 @@ class SlackOperator(SlackWebhookOperator):
         self.slack_msg = slack_msg
 
     def execute(self, context):
+        self.webhook_token = BaseHook.get_connection(self.slack_conn_id).password
+
         self.message = """
             *[{env_level}]*
             *Dag:* {dag}
