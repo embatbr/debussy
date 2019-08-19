@@ -5,6 +5,10 @@ export PROJECT_ROOT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd ${PROJECT_ROOT_PATH}
 
 
+VERSION="$(cat version)"
+echo version ${VERSION}
+
+
 TARGET_PROJECT="$1"
 if [ "${TARGET_PROJECT}" == "dotzpay" ]
 then
@@ -20,4 +24,4 @@ cp -R debussy ${PROJECT_ROOT_PATH}/../${TARGET_PATH}/dags
 
 
 # python setup.py bdist_egg
-# cp dist/debussy-1.1.0-py3.6.egg ../${TARGET_PATH}/dags/debussy.egg
+# cp dist/debussy-${VERSION}-py3.6.egg ../${TARGET_PATH}/dags/debussy.egg
