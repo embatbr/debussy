@@ -29,7 +29,8 @@ class BigQueryTableOperator(BigQueryOperator):
         BigQueryOperator.execute(self, context)
 
 
-class BigQueryTableDeleteOperator(BigQueryTableOperator):
+# TODO rename it (duplicated)
+class BigQueryTableDeleteDataOperator(BigQueryTableOperator):
 
     SQL_TEMPLATE = """DELETE
 FROM
@@ -62,10 +63,10 @@ WHERE
         BigQueryTableOperator.execute(self, context)
 
 
-class BigQueryTableFlushOperator(BigQueryTableDeleteOperator):
+class BigQueryTableFlushOperator(BigQueryTableDeleteDataOperator):
 
     def __init__(self, project, env_level, table, target_table_path, *args, **kwargs):
-        BigQueryTableDeleteOperator.__init__(
+        BigQueryTableDeleteDataOperator.__init__(
             self,
             project=project,
             env_level=env_level,
@@ -81,7 +82,7 @@ class BigQueryTableFlushOperator(BigQueryTableDeleteOperator):
         return 'flush'
 
     def execute(self, context):
-        BigQueryTableDeleteOperator.execute(self, context)
+        BigQueryTableDeleteDataOperator.execute(self, context)
 
 
 class BigQueryRawToClean(BigQueryTableOperator):
