@@ -36,7 +36,7 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
 
-    def __init__(self, project, env_level, config, table, driver_class_name, db_conn_data,
+    def __init__(self, project, env_level, table, config, driver_class_name, db_conn_data,
         bq_sink, *args, **kwargs):
         self.table = table
 

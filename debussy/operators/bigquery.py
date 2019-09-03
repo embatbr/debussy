@@ -29,7 +29,6 @@ class BigQueryTableOperator(BigQueryOperator):
         BigQueryOperator.execute(self, context)
 
 
-# TODO rename it (duplicated)
 class BigQueryTableDeleteDataOperator(BigQueryTableOperator):
 
     SQL_TEMPLATE = """DELETE
@@ -65,7 +64,7 @@ WHERE
 
 class BigQueryTableFlushOperator(BigQueryTableDeleteDataOperator):
 
-    def __init__(self, project, env_level, table, target_table_path, *args, **kwargs):
+    def __init__(self, project, env_level, table, config, target_table_path, *args, **kwargs):
         BigQueryTableDeleteDataOperator.__init__(
             self,
             project=project,
