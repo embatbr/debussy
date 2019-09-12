@@ -7,4 +7,4 @@ Debussy is a (aimed to be open source) library to centralize code for Google Com
 
 ## Installing
 
-Execute the script *deploy.sh* (works for Dotzpay only, for now).
+Check the script *deploy.sh*.
