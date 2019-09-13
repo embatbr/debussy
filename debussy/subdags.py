@@ -47,7 +47,8 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
     )
 
 
-def create_table_mirror_subdag(parent_dag, project_params, db_conn_data, conversor_wrapper, default_dataflow_args):
+def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, db_conn_data, conversor_wrapper,
+    default_dataflow_args):
     project_id = project_params['project_id']
     env_level = project_params['env_level']
     table = project_params['table']
@@ -117,3 +118,7 @@ def create_table_mirror_subdag(parent_dag, project_params, db_conn_data, convers
         'table_{}_mirror_subdag'.format(table.lower()),
         default_dataflow_args
     )
+
+
+def create_datastore_bigquery_mirror_subdag():
+    pass

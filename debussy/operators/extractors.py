@@ -35,6 +35,7 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
 
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
+    # TODO remove any code "locked" to SQL Server
 
     def __init__(self, project, env_level, table, config, driver_class_name, db_conn_data,
         bq_sink, *args, **kwargs):
