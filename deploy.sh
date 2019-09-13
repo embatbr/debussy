@@ -10,18 +10,11 @@ echo version ${VERSION}
 
 
 TARGET_PROJECT="$1"
-if [ "${TARGET_PROJECT}" == "dotzpay" ]
-then
-    TARGET_PATH="${TARGET_PROJECT}/composer"
-elif [ "${TARGET_PROJECT}" == "dotz-workflows" ]
-then
-    TARGET_PATH="${TARGET_PROJECT}"
-fi
 
 
-rm -Rf ${PROJECT_ROOT_PATH}/../${TARGET_PATH}/dags/debussy
-cp -R debussy ${PROJECT_ROOT_PATH}/../${TARGET_PATH}/dags
+rm -Rf ${PROJECT_ROOT_PATH}/../${TARGET_PROJECT}/composer/dags/debussy
+cp -R debussy ${PROJECT_ROOT_PATH}/../${TARGET_PROJECT}/composer/dags
 
 
 # python setup.py bdist_egg
-# cp dist/debussy-${VERSION}-py3.6.egg ../${TARGET_PATH}/dags/debussy.egg
+# cp dist/debussy-${VERSION}-py3.6.egg ../${TARGET_PROJECT}/composer/dags/debussy.egg
