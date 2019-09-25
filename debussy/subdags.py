@@ -23,7 +23,9 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
 
     begin_task = StartOperator(phase, **default_args)
     end_task = FinishOperator(phase, **default_args)
-    subdag_func(subdag, begin_task, end_task)
+    subdag >> begin_task
+    subdag >> end_task
+    subdag_func(begin_task, end_task)
 
     return SubDagOperator(
         subdag=subdag,
@@ -33,9 +35,9 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
 
 
 def create_notification_subdag(parent_dag, env_level, phase, message, default_args):
-    def _internal(subdag, begin_task, end_task):
+    def _internal(begin_task, end_task):
         notification_task = SlackOperator(env_level, phase, message, **default_args)
-        subdag >> begin_task >> notification_task >> end_task
+        begin_task >> notification_task >> end_task
 
     return _create_subdag(
         _internal,
@@ -55,7 +57,7 @@ def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, db_conn_
     dataset_origin = project_params['dataset_origin']
     pools = project_params['pools']
 
-    def _internal(subdag, begin_task, end_task):
+    def _internal(begin_task, end_task):
         extractor_task = JDBCExtractorTemplateOperator(
             project=project_id,
             env_level=env_level,
@@ -109,7 +111,7 @@ def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, db_conn_
             **default_args
         )
 
-        subdag >> begin_task >> extractor_task >> bq_flush_task >> raw2clean_task >> end_task
+        begin_task >> extractor_task >> bq_flush_task >> raw2clean_task >> end_task
 
     return _create_subdag(
         _internal,
@@ -128,7 +130,7 @@ def create_datastore_bigquery_mirror_subdag(parent_dag, project_params, converso
     dataset_origin = project_params['dataset_origin']
     pools = project_params['pools']
 
-    def _internal(subdag, begin_task, end_task):
+    def _internal(begin_task, end_task):
         # TODO chamar operador de extract via dataflow template
 
         bq_flush_task = BigQueryTableFlushOperator(
@@ -165,7 +167,7 @@ def create_datastore_bigquery_mirror_subdag(parent_dag, project_params, converso
             **default_args
         )
 
-        subdag >> begin_task >> bq_flush_task >> raw2clean_task >> end_task
+        begin_task >> bq_flush_task >> raw2clean_task >> end_task
 
     return _create_subdag(
         _internal,
