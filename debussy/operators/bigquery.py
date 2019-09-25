@@ -33,7 +33,7 @@ class BigQueryTableDeleteDataOperator(BigQueryTableOperator):
 
     SQL_TEMPLATE = """DELETE
 FROM
-    {target_table_path}
+    `{target_table_path}`
 WHERE
     {where_condition}
 """
@@ -87,11 +87,11 @@ class BigQueryTableFlushOperator(BigQueryTableDeleteDataOperator):
 class BigQueryRawToClean(BigQueryTableOperator):
 
     SQL_TEMPLATE = """INSERT INTO
-    {target_table_path}
+    `{target_table_path}`
 SELECT
     {source_table_fields_converted}
 FROM
-    {source_table_path}
+    `{source_table_path}`
 """
 
     def __init__(self, project, env_level, table, config, target_table_path, source_table_path,
