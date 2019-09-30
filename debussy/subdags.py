@@ -9,6 +9,7 @@ from airflow.operators.subdag_operator import SubDagOperator
 
 from dags.debussy.operators.basic import StartOperator, FinishOperator
 from dags.debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
+from dags.debussy.operators.extractors import DatastoreExtractorTemplateOperator
 from dags.debussy.operators.extractors import JDBCExtractorTemplateOperator
 from dags.debussy.operators.notification import SlackOperator
 
@@ -41,11 +42,17 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
     )
 
 
-def _create_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
-    task_id_format, default_args):
+def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
+    conversor_wrapper, task_id_format, default_args):
     """Creates a subdag to mirror a table from a given source to BigQuery.
     """
     project_id = project_params['project_id']
+    config = project_params['config']
+
+    extractor_params = dict(project_params['extract'])
+    extractor_params['project'] = project_id
+    extractor_params['config'] = config
+    extractor_params.update(default_args)
 
     bigquery_params = project_params['bigquery']
     bigquery_pool = bigquery_params['pool']
@@ -53,10 +60,8 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper
     raw_table_name = bigquery_params['raw_table_name']
     clean_table_name = bigquery_params['clean_table_name']
 
-    config = project_params['config']
-
     def _internal(begin_task, end_task):
-        # TODO task to extract
+        extract_task = extractor_class(**extractor_params)
 
         bq_flush_task = BigQueryTableFlushOperator(
             project=project_id,
@@ -78,7 +83,7 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper
             **default_args
         )
 
-        begin_task >> bq_flush_task >> raw2clean_task >> end_task
+        begin_task >> extract_task >> bq_flush_task >> raw2clean_task >> end_task
 
     return _create_subdag(
         _internal,
@@ -110,76 +115,14 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
     )
 
 
-def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, db_conn_data,
-    conversor_wrapper, default_args):
-    project_id = project_params['project_id']
-    env_level = project_params['env_level']
-    table = project_params['table']
-    config = project_params['config']
-    dataset_origin = project_params['dataset_origin']
-    pools = project_params['pools']
-
-    def _internal(begin_task, end_task):
-        extractor_task = JDBCExtractorTemplateOperator(
-            project=project_id,
-            env_level=env_level,
-            table=table,
-            config=config,
-            driver_class_name='com.microsoft.sqlserver.jdbc.SQLServerDriver',
-            db_conn_data=db_conn_data,
-            bq_sink='{}_RAW_{}.{}'.format(
-                env_level.upper(),
-                dataset_origin,
-                table
-            ),
-            pool=pools['extractor'],
-            **default_args
-        )
-
-        bq_flush_task = BigQueryTableFlushOperator(
-            project=project_id,
-            env_level=env_level,
-            table=table,
-            config=config,
-            target_table_path='{}.{}_CLEAN_{}.{}'.format(
-                project_id,
-                env_level.upper(),
-                dataset_origin,
-                table
-            ),
-            pool=pools['bigquery'],
-            **default_args
-        )
-
-        raw2clean_task = BigQueryRawToClean(
-            project=project_id,
-            env_level=env_level,
-            table=table,
-            config=config,
-            target_table_path='{}.{}_CLEAN_{}.{}'.format(
-                project_id,
-                env_level.upper(),
-                dataset_origin,
-                table
-            ),
-            source_table_path='{}.{}_RAW_{}.{}'.format(
-                project_id,
-                env_level.upper(),
-                dataset_origin,
-                table
-            ),
-            conversor_wrapper=conversor_wrapper,
-            pool=pools['bigquery'],
-            **default_args
-        )
-
-        begin_task >> extractor_task >> bq_flush_task >> raw2clean_task >> end_task
-
-    return _create_subdag(
-        _internal,
+def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
+    default_args):
+    return _create_bigquery_mirror_subdag(
         parent_dag,
-        'table_{}_mirror_subdag'.format(table.lower()),
-        table,
+        project_params,
+        JDBCExtractorTemplateOperator,
+        conversor_wrapper,
+        'table_{}_mirror_subdag',
         default_args
     )
 
@@ -189,6 +132,7 @@ def create_datastore_bigquery_mirror_subdag(parent_dag, project_params, converso
     return _create_bigquery_mirror_subdag(
         parent_dag,
         project_params,
+        DatastoreExtractorTemplateOperator,
         conversor_wrapper,
         '{}_mirror_subdag',
         default_args
