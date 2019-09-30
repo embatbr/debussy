@@ -8,9 +8,8 @@ from airflow.contrib.operators.dataflow_operator import DataflowTemplateOperator
 
 class ExtractorTemplateOperator(DataflowTemplateOperator):
 
-    def __init__(self, project, env_level, config, task_id_sufix, parameters, *args, **kwargs):
+    def __init__(self, project, config, task_id_sufix, parameters, *args, **kwargs):
         self.project = project
-        self.env_level = env_level
         self.config = config
 
         template_location = 'gs://{}/templates/{}/{}/v{}'.format(
@@ -35,28 +34,24 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
 
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
-    # TODO remove any code "locked" to SQL Server
-
-    def __init__(self, project, env_level, table, config, driver_class_name, db_conn_data,
+    def __init__(self, project, table, config, driver_class_name, db_parameters,
         bq_sink, *args, **kwargs):
         self.table = table
 
-        kwargs.update({
-            'task_id_sufix': 'table-{}'.format(self.table.lower()),
-            'parameters': {
-                'project': project,
-                'driverClassName': driver_class_name,
-                'jdbcUrl': 'jdbc:sqlserver://{host}:{port};databaseName={dbname}'.format(
-                    **db_conn_data
-                ),
-                'username': db_conn_data['user'],
-                'password': db_conn_data['password'],
-                'query': "SELECT 1",
-                'bigQuerySink': bq_sink
-            }
-        })
+        task_id_sufix = 'table-{}'.format(self.table.lower())
 
-        ExtractorTemplateOperator.__init__(self, project, env_level, config, *args, **kwargs)
+        parameters = {
+            'project': project,
+            'driverClassName': driver_class_name,
+            'query': "SELECT 1",
+            'bigQuerySink': bq_sink
+        }
+
+        parameters.update(db_parameters)
+
+        ExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, parameters, *args, **kwargs
+        )
 
     def execute(self, context):
         hook = GoogleCloudStorageHook()
@@ -69,6 +64,35 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
         fields = [obj['name'] for obj in objs]
 
         query = "SELECT {} FROM {}".format(', '.join(fields), self.table)
+        self.parameters['query'] = query
+
+        ExtractorTemplateOperator.execute(self, context)
+
+
+class DatastoreExtractorTemplateOperator(ExtractorTemplateOperator):
+
+    def __init__(self, project, namespace, kind, config, bq_sink, *args, **kwargs):
+        self.namespace = namespace
+        self.kind = kind
+
+        kwargs.update({
+            'task_id_sufix': '{}-{}'.format(
+                self.namespace.lower(),
+                self.kind.lower()
+            ),
+            'parameters': {
+                'project': project,
+                'sourceProjectId': config['sourceProjectId'],
+                'namespace': self.namespace,
+                'query': "SELECT 1",
+                'bigQuerySink': bq_sink
+            }
+        })
+
+        ExtractorTemplateOperator.__init__(self, project, config, *args, **kwargs)
+
+    def execute(self, context):
+        query = "SELECT * FROM {}".format(self.kind)
         self.parameters['query'] = query
 
         ExtractorTemplateOperator.execute(self, context)
