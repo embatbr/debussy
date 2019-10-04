@@ -2,15 +2,21 @@
 
 from datetime import datetime as dt
 from datetime import timedelta as td
+from copy import deepcopy
 
 import airflow
 from airflow import DAG
 from airflow.operators.subdag_operator import SubDagOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.executors.celery_executor import CeleryExecutor
+
+from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
 
 from dags.debussy.operators.basic import StartOperator, FinishOperator
-from dags.debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
+from dags.debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean, BigQueryExtractRowHashTable, BigQueryExtractOperationTable, BigQueryUpdateRowHashSourceTable
 from dags.debussy.operators.extractors import JDBCExtractorTemplateOperator
 from dags.debussy.operators.notification import SlackOperator
+from dags.debussy.operators.python import MonthlyBranchPython
 
 
 def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
@@ -21,8 +27,8 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
         catchup=False
     )
 
-    begin_task = StartOperator(phase, **default_args)
-    end_task = FinishOperator(phase, **default_args)
+    begin_task = StartOperator(phase, trigger_rule='all_done', **default_args)
+    end_task = FinishOperator(phase, trigger_rule='all_done', **default_args)
     subdag >> begin_task
     subdag >> end_task
     subdag_func(begin_task, end_task)
@@ -30,7 +36,8 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
     return SubDagOperator(
         subdag=subdag,
         task_id=task_id,
-        dag=parent_dag
+        dag=parent_dag,
+        executor=CeleryExecutor()
     )
 
 
@@ -47,6 +54,100 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
         default_args
     )
 
+"""Subdag de controle de log de RowHash: este subdag é responsável por: fazer a exportação incremental das linhas alteradas
+na tabela (NEW, UPDATE, DELETE). A exportação é feita primeiro em tabelas isoladas no dataset TEMP (para reduzir custos e o risco de conflitos de update).
+Depois, a tabela é exportada para arquivos JSON no GCS. O processo então deve fazer um update na tabela original, indicando que as tais linhas
+já foram processadas. Uma vez por mês, o processo também deve gerar um export FULL da tabela. Isso é feito para que um processo de reconstrução da tabela
+tenha um ponto inicial relativamente próximo a partir do qual o log de mudanças deve ser aplicado."""
+def create_rowhash_table_to_file_subdag(parent_dag, project_params, table_params, phase, default_args):
+    project_id = project_params['project_id']
+    env_level = project_params['env_level']
+    table = table_params['table_id']
+
+    def _internal(begin_task, end_task):
+        extract_task_incremental = BigQueryExtractRowHashTable(
+            project=project_id,
+            env_level=env_level,
+            table_params=table_params,
+            **default_args
+        )
+
+        begin_task >> extract_task_incremental
+
+        update_table = BigQueryUpdateRowHashSourceTable(
+            project=project_id,
+            env_level=env_level,
+            table_params=table_params,
+            **default_args
+        )
+        
+        operation_tasks = {}
+        for op in ['NEW', 'UPDATE', 'DELETE']:
+            operation_tasks['table_' + op] = BigQueryExtractOperationTable(
+                project=project_id,
+                env_level=env_level,
+                table_params=table_params,
+                operation=op,
+                **default_args
+            )
+
+            operation_tasks['export_' + op] = BigQueryToCloudStorageOperator(
+                task_id='export_{}_{}'.format(op, table_params['table_id']),
+                source_project_dataset_table='TEMP.{}_{}'.format(table_params['table_id'], op),
+                destination_cloud_storage_uris='gs://{0}/{1}/{{{{ ts_nodash[:-5] }}}}/{1}_{{{{ ts_nodash[:-5] }}}}_{2}_*.json'.format(
+                    project_params['rowhash_bucket'], table_params['table_id'], op
+                ),
+                export_format='NEWLINE_DELIMITED_JSON',
+                **default_args
+            )
+
+            extract_task_incremental >> operation_tasks['table_' + op] >> operation_tasks['export_' + op] >> update_table
+        
+        checa_dia_mes = MonthlyBranchPython(
+            true_result_task='{}_full'.format(table_params['table_id']),
+            false_result_task='dummy_task',
+            dia=table_params['dia'],
+            **default_args
+        )
+
+        table_params_full = deepcopy(table_params)
+        table_params_full.update({'full_load': True})
+
+        extract_task_full = BigQueryExtractRowHashTable(
+            project=project_id,
+            env_level=env_level,
+            table_params=table_params_full,
+            **default_args
+        )
+
+        export_task_full = BigQueryToCloudStorageOperator(
+            task_id='export_{}_full'.format(table_params['table_id']),
+            source_project_dataset_table='TEMP.{}'.format(table_params['table_id']),
+            destination_cloud_storage_uris='gs://{0}/{1}/{{{{ ts_nodash[:-5] }}}}/{1}_{{{{ ts_nodash[:-5] }}}}_FULL_*.json'.format(
+                project_params['rowhash_bucket'], table_params['table_id']
+            ),
+            export_format='NEWLINE_DELIMITED_JSON',
+            **default_args
+        )
+
+        update_table >> checa_dia_mes >> extract_task_full >> export_task_full >> end_task
+
+        # apenas usado para que o branch operator não conecte direto com a task final
+        # talvez possa ser removido?
+        dummy_task = DummyOperator(
+            task_id='dummy_task',
+            **default_args
+        )
+
+        checa_dia_mes >> dummy_task >> end_task
+
+    return _create_subdag(
+        _internal,
+        parent_dag,
+        'table_{}_rowhash_subdag'.format(table),
+        phase,
+        default_args
+    )
 
 def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, db_conn_data, conversor_wrapper,
     default_args):
