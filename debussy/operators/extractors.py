@@ -9,10 +9,12 @@ from airflow.contrib.operators.dataflow_operator import DataflowTemplateOperator
 class ExtractorTemplateOperator(DataflowTemplateOperator):
 
     def __init__(self, project, config, task_id_sufix, parameters, *args, **kwargs):
+        self.config = config
+
         template_location = 'gs://{}/templates/{}/v{}'.format(
-            config['bucket_name'],
-            config['template_name'],
-            config['template_version']
+            self.config['bucket_name'],
+            self.config['template_name'],
+            self.config['template_version']
         )
 
         parameters['project'] = project
@@ -103,26 +105,13 @@ class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
             'bigQuerySink': bq_sink
         }
 
-        query = "SELECT {} FROM {} WHERE {}"
+        query = "SELECT * FROM {}"
 
         QueryExtractorTemplateOperator.__init__(
             self, project, config, task_id_sufix, parameters, query, *args, **kwargs
         )
 
     def execute(self, context):
-        hook = GoogleCloudStorageHook()
-        objs = hook.download(
-            self.config['bucket_name'],
-            '{}/{}_{}.json'.format(
-                self.config['schemas_raw_path'], self.namespace, self.kind
-            )
-        )
-        objs = json.loads(objs)
-        fields = [obj['name'] for obj in objs]
-
-        self.query = self.query.format(fields, self.namespace, self.kind)
-        print()
-        print(self.query)
-        print()
+        self.query = self.query.format(self.kind)
 
         QueryExtractorTemplateOperator.execute(self, context)
