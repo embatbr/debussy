@@ -65,8 +65,8 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
 
         bq_flush_task = BigQueryTableFlushOperator(
             project=project_id,
-            table=bigquery_table,
             config=config,
+            table=bigquery_table,
             target_table_path=clean_table_name,
             pool=bigquery_pool,
             **default_args
@@ -74,8 +74,8 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
 
         raw2clean_task = BigQueryRawToClean(
             project=project_id,
-            table=bigquery_table,
             config=config,
+            table=bigquery_table,
             target_table_path=clean_table_name,
             source_table_path=raw_table_name,
             conversor_wrapper=conversor_wrapper,

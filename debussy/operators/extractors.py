@@ -9,15 +9,13 @@ from airflow.contrib.operators.dataflow_operator import DataflowTemplateOperator
 class ExtractorTemplateOperator(DataflowTemplateOperator):
 
     def __init__(self, project, config, task_id_sufix, parameters, *args, **kwargs):
-        self.project = project
-        self.config = config
-
-        template_location = 'gs://{}/templates/{}/{}/v{}'.format(
+        template_location = 'gs://{}/templates/{}/v{}'.format(
             config['bucket_name'],
             config['template_name'],
-            config['main_class'],
             config['template_version']
         )
+
+        parameters['project'] = project
 
         DataflowTemplateOperator.__init__(
             self,
@@ -29,19 +27,35 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
             **kwargs
         )
 
-        def execute(self, context):
-            DataflowTemplateOperator.execute(self, context)
+    def execute(self, context):
+        DataflowTemplateOperator.execute(self, context)
 
 
+class QueryExtractorTemplateOperator(ExtractorTemplateOperator):
+
+    def __init__(self, project, config, task_id_sufix, parameters, query, *args,
+        **kwargs):
+        self.query = query
+
+        ExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, parameters, *args, **kwargs
+        )
+
+    def execute(self, context):
+        self.parameters['query'] = self.query
+
+        ExtractorTemplateOperator.execute(self, context)
+
+
+# class JDBCExtractorTemplateOperator(QueryExtractorTemplateOperator):
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
-    def __init__(self, project, table, config, driver_class_name, db_parameters,
+    def __init__(self, project, config, table, driver_class_name, db_parameters,
         bq_sink, *args, **kwargs):
         self.table = table
 
         task_id_sufix = 'table-{}'.format(self.table.lower())
 
         parameters = {
-            'project': project,
             'driverClassName': driver_class_name,
             'query': "SELECT 1",
             'bigQuerySink': bq_sink
@@ -69,30 +83,46 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
         ExtractorTemplateOperator.execute(self, context)
 
 
-class DatastoreExtractorTemplateOperator(ExtractorTemplateOperator):
+class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
 
-    def __init__(self, project, namespace, kind, config, bq_sink, *args, **kwargs):
+    def __init__(self, project, config, namespace, kind, condition, bq_sink, *args,
+        **kwargs):
         self.namespace = namespace
         self.kind = kind
+        self.condition = condition
 
-        kwargs.update({
-            'task_id_sufix': '{}-{}'.format(
-                self.namespace.lower(),
-                self.kind.lower()
-            ),
-            'parameters': {
-                'project': project,
-                'sourceProjectId': config['sourceProjectId'],
-                'namespace': self.namespace,
-                'query': "SELECT 1",
-                'bigQuerySink': bq_sink
-            }
-        })
+        task_id_sufix = 'namespace-{}-kind-{}'.format(
+            self.namespace.lower(),
+            self.kind.lower()
+        )
 
-        ExtractorTemplateOperator.__init__(self, project, config, *args, **kwargs)
+        parameters = {
+            'sourceProjectId': config['sourceProjectId'],
+            'namespace': self.namespace,
+            'query': "SELECT 1",
+            'bigQuerySink': bq_sink
+        }
+
+        query = "SELECT {} FROM {} WHERE {}"
+
+        QueryExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, parameters, query, *args, **kwargs
+        )
 
     def execute(self, context):
-        query = "SELECT * FROM {}".format(self.kind)
-        self.parameters['query'] = query
+        hook = GoogleCloudStorageHook()
+        objs = hook.download(
+            self.config['bucket_name'],
+            '{}/{}_{}.json'.format(
+                self.config['schemas_raw_path'], self.namespace, self.kind
+            )
+        )
+        objs = json.loads(objs)
+        fields = [obj['name'] for obj in objs]
 
-        ExtractorTemplateOperator.execute(self, context)
+        self.query = self.query.format(fields, self.namespace, self.kind)
+        print()
+        print(self.query)
+        print()
+
+        QueryExtractorTemplateOperator.execute(self, context)
