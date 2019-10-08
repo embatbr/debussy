@@ -37,9 +37,8 @@ class BigQueryDropTableOperator(BigQueryOperator):
 
 class BigQueryTableOperator(BigQueryOperator):
 
-    def __init__(self, project, env_level, table, sql_template_params, *args, **kwargs):
+    def __init__(self, project, table, sql_template_params, *args, **kwargs):
         self.project = project
-        self.env_level = env_level
         self.table = table
         self.sql_template_params = sql_template_params
 
@@ -67,7 +66,7 @@ WHERE
     {where_condition}
 """
 
-    def __init__(self, project, env_level, table, target_table_path, where_condition, *args, **kwargs):
+    def __init__(self, project, table, target_table_path, where_condition, *args, **kwargs):
         sql_template_params = {
             'target_table_path': target_table_path,
             'where_condition': where_condition
@@ -76,7 +75,6 @@ WHERE
         BigQueryTableOperator.__init__(
             self,
             project=project,
-            env_level=env_level,
             table=table,
             sql_template_params=sql_template_params,
             *args,
@@ -93,11 +91,10 @@ WHERE
 
 class BigQueryTableFlushOperator(BigQueryTableDeleteDataOperator):
 
-    def __init__(self, project, env_level, table, config, target_table_path, *args, **kwargs):
+    def __init__(self, project, table, config, target_table_path, *args, **kwargs):
         BigQueryTableDeleteDataOperator.__init__(
             self,
             project=project,
-            env_level=env_level,
             table=table,
             target_table_path=target_table_path,
             where_condition="1 = 1",
@@ -123,7 +120,7 @@ FROM
     `{source_table_path}`
 """
 
-    def __init__(self, project, env_level, table, config, target_table_path, source_table_path,
+    def __init__(self, project, table, config, target_table_path, source_table_path,
         conversor_wrapper, *args, **kwargs):
         self.config = config
         self.conversor = conversor_wrapper(self)
@@ -136,10 +133,9 @@ FROM
         BigQueryTableOperator.__init__(
             self,
             project=project,
-            env_level=env_level,
             table=table,
             sql_template_params=sql_template_params,
-            write_disposition='WRITE_TRUNCATE',
+            write_disposition='WRITE_TRUNCATE', # point of attention
             create_disposition='CREATE_NEVER',
             *args,
             **kwargs

@@ -8,17 +8,16 @@ from airflow.contrib.operators.dataflow_operator import DataflowTemplateOperator
 
 class ExtractorTemplateOperator(DataflowTemplateOperator):
 
-    def __init__(self, project, env_level, config, task_id_sufix, parameters, *args, **kwargs):
-        self.project = project
-        self.env_level = env_level
+    def __init__(self, project, config, task_id_sufix, parameters, *args, **kwargs):
         self.config = config
 
-        template_location = 'gs://{}/templates/{}/{}/v{}'.format(
-            config['bucket_name'],
-            config['template_name'],
-            config['main_class'],
-            config['template_version']
+        template_location = 'gs://{}/templates/{}/v{}'.format(
+            self.config['bucket_name'],
+            self.config['template_name'],
+            self.config['template_version']
         )
+
+        parameters['project'] = project
 
         DataflowTemplateOperator.__init__(
             self,
@@ -30,33 +29,45 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
             **kwargs
         )
 
-        def execute(self, context):
-            DataflowTemplateOperator.execute(self, context)
+    def execute(self, context):
+        DataflowTemplateOperator.execute(self, context)
 
 
+class QueryExtractorTemplateOperator(ExtractorTemplateOperator):
+
+    def __init__(self, project, config, task_id_sufix, parameters, query, *args,
+        **kwargs):
+        self.query = query
+
+        ExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, parameters, *args, **kwargs
+        )
+
+    def execute(self, context):
+        self.parameters['query'] = self.query
+
+        ExtractorTemplateOperator.execute(self, context)
+
+
+# class JDBCExtractorTemplateOperator(QueryExtractorTemplateOperator):
 class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
-    # TODO remove any code "locked" to SQL Server
-
-    def __init__(self, project, env_level, table, config, driver_class_name, db_conn_data,
+    def __init__(self, project, config, table, driver_class_name, db_parameters,
         bq_sink, *args, **kwargs):
         self.table = table
 
-        kwargs.update({
-            'task_id_sufix': 'table-{}'.format(self.table.lower()),
-            'parameters': {
-                'project': project,
-                'driverClassName': driver_class_name,
-                'jdbcUrl': 'jdbc:sqlserver://{host}:{port};databaseName={dbname}'.format(
-                    **db_conn_data
-                ),
-                'username': db_conn_data['user'],
-                'password': db_conn_data['password'],
-                'query': "SELECT 1",
-                'bigQuerySink': bq_sink
-            }
-        })
+        task_id_sufix = 'table-{}'.format(self.table.lower())
 
-        ExtractorTemplateOperator.__init__(self, project, env_level, config, *args, **kwargs)
+        parameters = {
+            'driverClassName': driver_class_name,
+            'query': "SELECT 1",
+            'bigQuerySink': bq_sink
+        }
+
+        parameters.update(db_parameters)
+
+        ExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, parameters, *args, **kwargs
+        )
 
     def execute(self, context):
         hook = GoogleCloudStorageHook()
@@ -72,3 +83,35 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
         self.parameters['query'] = query
 
         ExtractorTemplateOperator.execute(self, context)
+
+
+class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
+
+    def __init__(self, project, config, namespace, kind, condition, bq_sink, *args,
+        **kwargs):
+        self.namespace = namespace
+        self.kind = kind
+        self.condition = condition
+
+        task_id_sufix = 'namespace-{}-kind-{}'.format(
+            self.namespace.lower(),
+            self.kind.lower()
+        )
+
+        parameters = {
+            'sourceProjectId': config['sourceProjectId'],
+            'namespace': self.namespace,
+            'query': "SELECT 1",
+            'bigQuerySink': bq_sink
+        }
+
+        query = "SELECT * FROM {}"
+
+        QueryExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, parameters, query, *args, **kwargs
+        )
+
+    def execute(self, context):
+        self.query = self.query.format(self.kind)
+
+        QueryExtractorTemplateOperator.execute(self, context)
