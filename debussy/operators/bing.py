@@ -5,7 +5,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from dags.debussy.hooks.bing import BingMapsHook
 
-class BingMapsCreateJob(BaseOperator):
+class BingMapsCreateJobOperator(BaseOperator):
     """Operator that takes a file from GCS, saves it locally at the data folder (in Composer, the data folder is GCSFuse mounted),
     and then sends it to the Bing Maps Batch Geocode Endpoint. 
     An HTTP connection must be provided with the URL and Bing Maps key previously configured.
@@ -72,7 +72,7 @@ class BingMapsCreateJob(BaseOperator):
 
         return response.json()
 
-class BingMapsDownloadJob(BaseOperator):
+class BingMapsDownloadJobOperator(BaseOperator):
     """Operator that takes a BingMapsCreateJob operator, gets the Id of the job created and downloads the success file from the job.
     The file is then processed to remove the extra header (with the version of the Geocode) and replacing the column header's characters "/" for "_".
     This is to ensure that the column names can be processed as proper column names (BigQuery, for example, does not accept "/" in columns).
