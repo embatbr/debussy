@@ -37,14 +37,14 @@ class BigQueryDropTableOperator(BigQueryOperator):
 
 class BigQueryTableOperator(BigQueryOperator):
 
-    def __init__(self, project, table, sql_template_params, *args, **kwargs):
+    def __init__(self, project, table, sql_template_params, task_id=None, *args, **kwargs):
         self.project = project
         self.table = table
         self.sql_template_params = sql_template_params
 
         BigQueryOperator.__init__(
             self,
-            task_id='{}-table-{}'.format(self.operation, self.table),
+            task_id=task_id if task_id else '{}-table-{}'.format(self.operation, self.table),
             sql='SELECT 1',
             allow_large_results=True,
             use_legacy_sql=False,
