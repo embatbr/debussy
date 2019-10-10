@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from datetime import datetime as dt
+
 from airflow.models import BaseOperator
 
 
@@ -17,7 +19,8 @@ class BasicOperator(BaseOperator):
         self.step = step
 
     def execute(self, context):
-        pass
+        now = dt.utcnow()
+        return now.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 
 
 class StartOperator(BasicOperator):

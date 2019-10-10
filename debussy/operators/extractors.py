@@ -87,11 +87,11 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
 
 class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
 
-    def __init__(self, project, config, namespace, kind, condition, bq_sink, *args,
+    def __init__(self, project, config, namespace, kind, build_query, bq_sink, *args,
         **kwargs):
         self.namespace = namespace
         self.kind = kind
-        self.condition = condition
+        self.build_query = build_query(self)
 
         task_id_sufix = 'namespace-{}-kind-{}'.format(
             self.namespace.lower(),
@@ -101,17 +101,16 @@ class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
         parameters = {
             'sourceProjectId': config['sourceProjectId'],
             'namespace': self.namespace,
-            'query': "SELECT 1",
             'bigQuerySink': bq_sink
         }
 
-        query = "SELECT * FROM {}"
+        query = "SELECT 1"
 
         QueryExtractorTemplateOperator.__init__(
             self, project, config, task_id_sufix, parameters, query, *args, **kwargs
         )
 
     def execute(self, context):
-        self.query = self.query.format(self.kind)
+        self.query = self.build_query(context)
 
         QueryExtractorTemplateOperator.execute(self, context)
