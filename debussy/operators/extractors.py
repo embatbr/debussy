@@ -87,8 +87,8 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
 
 class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
 
-    def __init__(self, project, config, namespace, kind, build_query, bq_sink, *args,
-        **kwargs):
+    def __init__(self, project, config, namespace, kind, build_query, bq_sink,
+        *args, **kwargs):
         self.namespace = namespace
         self.kind = kind
         self.build_query = build_query(self)
@@ -101,7 +101,8 @@ class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
         parameters = {
             'sourceProjectId': config['sourceProjectId'],
             'namespace': self.namespace,
-            'bigQuerySink': bq_sink
+            'bigQuerySink': bq_sink,
+            'whiteListString': ''
         }
 
         query = "SELECT 1"
@@ -112,5 +113,14 @@ class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
 
     def execute(self, context):
         self.query = self.build_query(context)
+
+        entity = self.xcom_pull(
+            context=context,
+            dag_id=self.dag.dag_id,
+            task_ids='datastore_get_{}_{}'.format(self.namespace, self.kind)
+        )
+
+        white_list_string = entity.get('fields', '')
+        self.parameters['whiteListString'] = white_list_string
 
         QueryExtractorTemplateOperator.execute(self, context)

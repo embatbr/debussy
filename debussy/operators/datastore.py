@@ -51,7 +51,8 @@ class DatastoreGetObjectOperator(BaseOperator):
 
 class DatastorePutObjectOperator(DatastoreGetObjectOperator):
 
-    def __init__(self, project, control, namespace, kind, *args, **kwargs):
+    def __init__(self, project, control, namespace, kind, metadata_updater,
+        *args, **kwargs):
         DatastoreGetObjectOperator.__init__(
             self,
             project,
@@ -64,17 +65,13 @@ class DatastorePutObjectOperator(DatastoreGetObjectOperator):
         )
 
         self.task_id='datastore_put_{}_{}'.format(namespace, kind)
+        self.metadata_updater = metadata_updater(self)
 
     def execute(self, context):
         DatastoreGetObjectOperator.execute(self, context)
 
-        date_upper_limit = self.xcom_pull(
-            context=context, dag_id=self.dag.dag_id, task_ids='begin_dag'
-        )
-
-        self.entity.update({
-            'date_offset': dt.strptime(date_upper_limit, '%Y-%m-%dT%H:%M:%S.%fZ')
-        })
+        if self.metadata_updater:
+            self.metadata_updater(context, self.entity)
 
         metadata_writer = DatastoreMetadataWriter(self.project)
         metadata_writer.update(self.entity)
