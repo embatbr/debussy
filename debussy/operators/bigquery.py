@@ -9,23 +9,32 @@ from dags.debussy.helper import json_traverser
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-
-from airflow import AirflowException
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 
-class BigQueryDropTableOperator(BigQueryOperator):
+from airflow import AirflowException
+from airflow.models import BaseOperator
+
+class BigQueryDropTableOperator(BaseOperator):
     """Classe que força o BigQuery a deletar uma tabela.
     É usado nos casos onde o dataset de destino possui dias de expiração.
     Como o operador padrão do BigQuery no Airflow não possui opção para sobrescrever este valor e
     a definição de tabela destino (mesmo com WRITE_TRUNCATE) não reinicia o número de dias para a expiração,
     isso faz com que o job tenha erros a cada ciclo de expiração de tabela."""
 
-    def __init__(self, project_id, dataset_id, table_id, *args, **kwargs):
+    def __init__(self, project_id, dataset_id, table_id, bigquery_conn_id='bigquery_default', *args, **kwargs):
         self.task_id='drop-table-{}.{}'.format(dataset_id, table_id)
 
         self.project_id = project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
+        self.bigquery_conn_id = bigquery_conn_id
+
+        BaseOperator.__init__(
+            self,
+            task_id=self.task_id,
+            *args,
+            **kwargs
+        )
     
     @property
     def operation(self):
@@ -40,7 +49,7 @@ class BigQueryDropTableOperator(BigQueryOperator):
 
 class BigQueryTableOperator(BigQueryOperator):
 
-    def __init__(self, project, table, sql_template_params, task_id=None, *args, **kwargs):
+    def __init__(self, project, table, sql_template_params, task_id=None, sql=None, *args, **kwargs):
         self.project = project
         self.table = table
         self.sql_template_params = sql_template_params
@@ -48,7 +57,7 @@ class BigQueryTableOperator(BigQueryOperator):
         BigQueryOperator.__init__(
             self,
             task_id=task_id if task_id else '{}-table-{}'.format(self.operation, self.table),
-            sql='SELECT 1',
+            sql=sql if sql else 'SELECT 1',
             allow_large_results=True,
             use_legacy_sql=False,
             *args,
@@ -56,7 +65,10 @@ class BigQueryTableOperator(BigQueryOperator):
         )
 
     def execute(self, context):
-        self.sql = self.SQL_TEMPLATE.format(**self.sql_template_params)
+        try:
+            self.sql = self.SQL_TEMPLATE.format(**self.sql_template_params)
+        except AttributeError:
+            self.sql = self.sql.format(**self.sql_template_params)
         BigQueryOperator.execute(self, context)
 
 
