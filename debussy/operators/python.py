@@ -4,26 +4,34 @@ from datetime import datetime
 
 from airflow.operators.python_operator import BranchPythonOperator
 
-def checa_dia_mes(ds, **kwargs):
+def check_month_day(ds, **kwargs):
     date = datetime.strptime(ds, '%Y-%m-%d')
 
-    if(date.day == kwargs['dia']):
+    if(date.day == kwargs['day']):
         return kwargs['true_result_task']
     else:
         return kwargs['false_result_task']
 
 class MonthlyBranchPython(BranchPythonOperator):
-    """Operador facilitador para checagens mensais. Como existem diversos processos que devem ser executados em um determinado dia do mês,
-    montamos este operador para que não fosse necessário um módulo de métodos auxiliares (pelo menos para este caso)."""
-    def __init__(self, dia, true_result_task, false_result_task, *args, **kwargs):
+    """Operator that simplifies cases when some branch must be executed once a month.
+    Be careful that, since we only check the day, informing a number outside of the expected range
+    will not fail the task, but the true branch will simply never be executed.
+    :param day: the day when the check must return true
+    :type day: int
+    :param true_result_task: the name of the task that should be returned if the day matches
+    :type true_result_task: str
+    :param false_result_task: the name of the task that should be returned if the day doesn't match
+    :type false_result_task: str
+    """
+    def __init__(self, day, true_result_task, false_result_task, *args, **kwargs):
         
         BranchPythonOperator.__init__(
             self,
-            task_id='checa_dia_mes_{}'.format(dia),
-            python_callable=checa_dia_mes,
+            task_id='check_month_day{}'.format(day),
+            python_callable=check_month_day,
             provide_context=True,
             op_kwargs={
-                'dia': dia,
+                'day': day,
                 'true_result_task': true_result_task,
                 'false_result_task': false_result_task
             },
@@ -33,7 +41,7 @@ class MonthlyBranchPython(BranchPythonOperator):
     
     @property
     def operation(self):
-        return 'checa_dia_mes'
+        return 'check_month_day'
     
     def execute(self, context):
         BranchPythonOperator.execute(self, context)

@@ -140,9 +140,9 @@ class BingMapsDownloadJobOperator(BaseOperator):
         with open(local_file_path, 'r') as rf:
             with open(prepared_file_path, 'w') as wf:
                 for num, line in enumerate(rf, 1):
-                    if(num == 1):
+                    if num == 1:
                         pass
-                    elif(num == 2):
+                    elif num == 2:
                         wf.write(line.replace('/', '_'))
                     else:
                         wf.write(line)

@@ -15,11 +15,17 @@ from airflow import AirflowException
 from airflow.models import BaseOperator
 
 class BigQueryDropTableOperator(BaseOperator):
-    """Classe que força o BigQuery a deletar uma tabela.
-    É usado nos casos onde o dataset de destino possui dias de expiração.
-    Como o operador padrão do BigQuery no Airflow não possui opção para sobrescrever este valor e
-    a definição de tabela destino (mesmo com WRITE_TRUNCATE) não reinicia o número de dias para a expiração,
-    isso faz com que o job tenha erros a cada ciclo de expiração de tabela."""
+    """Operator that drops a table in BigQuery. Should only be used before v1.10.3 of Airflow, when
+    an official operator was included. This one will always ignore if the table is not found.
+    :param project_id: the project id
+    :type project_id: str
+    :param dataset_id: the dataset name
+    :type dataset_id: str
+    :param table_id: the table name
+    :type table_id: str
+    :param bigquery_conn_id: the name of the Airflow BQ connection to be used
+    :type bigquery_conn_id: str
+    """
 
     def __init__(self, project_id, dataset_id, table_id, bigquery_conn_id='bigquery_default', *args, **kwargs):
         self.task_id='drop-table-{}.{}'.format(dataset_id, table_id)

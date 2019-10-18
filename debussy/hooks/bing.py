@@ -27,9 +27,7 @@ class BingMapsHook(BaseHook):
         """
         header = response.headers
         content_type = header.get('content-type')
-        if 'json' in content_type.lower():
-            return False
-        if 'html' in content_type.lower():
+        if content_type.lower() in ('json', 'html'):
             return False
         return True
 
@@ -51,12 +49,12 @@ class BingMapsHook(BaseHook):
         url = '{}/{}'.format(self.conn.host, method)
         api_params['key'] = self.conn.password
         
-        if(operation == 'GET'):
+        if operation == 'GET':
             response = requests.get(url, params=api_params)
 
-            if(self.is_downloadable(response)):
+            if self.is_downloadable(response):
                 open(file_path, 'wb').write(response.content)
-        elif(operation == 'POST'):
+        elif operation == 'POST':
             with open(file_path,'r') as r:
                 content = r.read()
 
@@ -66,10 +64,13 @@ class BingMapsHook(BaseHook):
         
         # when a file will be downloaded, we simply output the file_path (to prevent the entire document to be outputted)
         # else, we can safely output the response json
-        logging.info('File: {}'.format(file_path) if(self.is_downloadable(response)) else response.json())
+        if self.is_downloadable(response):
+            logging.info('File: {}'.format(file_path))
+        else:
+            logging.info(response.json())
+
         if response:
             return response
         else:
             msg = "Bing Maps API call failed ({})".format(response.json())
             raise AirflowException(msg)
-            
