@@ -41,14 +41,14 @@ class BigQueryDropTableOperator(BaseOperator):
             *args,
             **kwargs
         )
-    
+
     @property
     def operation(self):
         return 'drop_table'
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
-        
+
         # Remover a tabela caso exista
         full_table_name = '%s.%s.%s' % (self.project_id, self.dataset_id, self.table_id)
         bq_hook.get_conn().cursor().run_table_delete(full_table_name, ignore_if_missing=True)
@@ -156,7 +156,7 @@ FROM
             project=project,
             table=table,
             sql_template_params=sql_template_params,
-            write_disposition='WRITE_APPEND',
+            # write_disposition='WRITE_APPEND',
             create_disposition='CREATE_NEVER',
             *args,
             **kwargs
@@ -247,7 +247,7 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
         for f, l in json_traverser(table_schema):
             # constructing a complete path so that we can ignore specific fields or subfields
             full_field_name = f['name'] if l == '' else '{}.{}'.format(l, f['name'])
-            
+
             # ignore whole records, specific fields/subfields, pk fields
             if(l not in update_fields_ignore and full_field_name not in update_fields_ignore and full_field_name not in pk_fields):
                 update_clause += 'd.{0} = s.{0},\n'.format(full_field_name)
@@ -261,7 +261,7 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
             if(f['name'] not in insert_fields_ignore):
                 insert_list += f['name'] + ',\n'
         insert_list = insert_list[:-2]
-        
+
         # preparing the join clause
         join_clause = ''
         for f in pk_fields:
@@ -279,12 +279,12 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
         # using the destination table as the base, we split it to supply the required params for the parent operator
         project, dataset, table = destination_table.split('.')
         BigQueryTableOperator.__init__(
-            self, 
+            self,
             project=project,
             table=table,
             sql_template_params=sql_template_params,
             *args, **kwargs
         )
-    
+
     def execute(self, context):
         BigQueryTableOperator.execute(self, context)
