@@ -68,7 +68,7 @@ class BigQueryTableFlushOperator(BigQueryTableDeleteDataOperator):
             project=project,
             table=table,
             target_table_path=target_table_path,
-            where_condition="1 = 1",
+            where_condition="true",
             *args,
             **kwargs
         )
@@ -106,7 +106,7 @@ FROM
             project=project,
             table=table,
             sql_template_params=sql_template_params,
-            write_disposition='WRITE_TRUNCATE', # point of attention
+            write_disposition='WRITE_APPEND',
             create_disposition='CREATE_NEVER',
             *args,
             **kwargs
