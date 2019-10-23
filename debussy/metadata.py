@@ -5,7 +5,7 @@ from google.cloud import datastore
 
 class DatastoreMetadataReader(object):
 
-    def __init__(self, project, namespace, kind, filters):
+    def __init__(self, project, namespace, kind, filters=[]):
         self.client = datastore.Client(
             project=project, namespace=namespace
         )
@@ -21,3 +21,12 @@ class DatastoreMetadataReader(object):
             )
 
         return query.fetch()
+
+
+class DatastoreMetadataWriter(object):
+
+    def __init__(self, project):
+        self.client = datastore.Client(project=project)
+
+    def update(self, entity):
+        self.client.put(entity)

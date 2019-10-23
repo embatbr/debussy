@@ -15,6 +15,8 @@ from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOpe
 
 from dags.debussy.operators.basic import StartOperator, FinishOperator
 from dags.debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
+from dags.debussy.operators.datastore import DatastoreGetObjectOperator
+from dags.debussy.operators.datastore import DatastorePutObjectOperator
 from dags.debussy.operators.extractors import DatastoreExtractorTemplateOperator
 from dags.debussy.operators.extractors import JDBCExtractorTemplateOperator
 from dags.debussy.operators.notification import SlackOperator
@@ -37,8 +39,8 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
     )
 
     begin_task = StartOperator(phase, trigger_rule='all_done', **default_args)
-    end_task = FinishOperator(phase, trigger_rule='all_done', **default_args)
     subdag >> begin_task
+    end_task = FinishOperator(phase, trigger_rule='all_done', **default_args)
     subdag >> end_task
     subdag_func(begin_task, end_task)
 
@@ -57,28 +59,33 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
     project_id = project_params['project_id']
     config = project_params['config']
 
+    metadata_params_get = dict(project_params['metadata_params_get'])
+    metadata_params_put = dict(project_params['metadata_params_put'])
+
     extractor_params = dict(project_params['extract'])
     extractor_params['project'] = project_id
     extractor_params['config'] = config
     extractor_params.update(default_args)
 
-    bigquery_params = project_params['bigquery']
+    bigquery_params = dict(project_params['bigquery'])
     bigquery_pool = bigquery_params['pool']
     bigquery_table = bigquery_params['table']
     raw_table_name = bigquery_params['raw_table_name']
     clean_table_name = bigquery_params['clean_table_name']
 
     def _internal(begin_task, end_task):
-        extract_task = extractor_class(**extractor_params)
-
         bq_flush_task = BigQueryTableFlushOperator(
             project=project_id,
             config=config,
             table=bigquery_table,
-            target_table_path=clean_table_name,
+            target_table_path=raw_table_name,
             pool=bigquery_pool,
             **default_args
         )
+
+        datastore_get_task = DatastoreGetObjectOperator(**metadata_params_get)
+
+        extract_task = extractor_class(**extractor_params)
 
         raw2clean_task = BigQueryRawToClean(
             project=project_id,
@@ -91,7 +98,10 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
             **default_args
         )
 
-        begin_task >> extract_task >> bq_flush_task >> raw2clean_task >> end_task
+        datastore_put_task = DatastorePutObjectOperator(**metadata_params_put)
+
+        begin_task >> bq_flush_task >> datastore_get_task >> extract_task
+        extract_task >> raw2clean_task >> datastore_put_task >> end_task
 
     return _create_subdag(
         _internal,
