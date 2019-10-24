@@ -34,8 +34,8 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
     subdag = DAG(
         dag_id='{}.{}'.format(parent_dag.dag_id, task_id),
         schedule_interval=None,
-        default_args=default_args,
-        catchup=False
+        catchup=False,
+        default_args=default_args
     )
 
     begin_task = StartOperator(phase, trigger_rule='all_done', **default_args)
@@ -231,7 +231,7 @@ def create_simple_pyspark_subdag(
         )
 
         begin_task >> cluster >> job >> end_task
-    
+
     return _create_subdag(
         _internal,
         parent_dag,
