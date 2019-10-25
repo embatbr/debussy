@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime as dt
+import logging
 import time
 
 from airflow.exceptions import AirflowTaskTimeout
@@ -21,6 +22,9 @@ class BasicOperator(BaseOperator):
         self.phase = phase
         self.step = step
         self.use_lock = use_lock
+
+        self.logger = logging.Logger(__name__)
+        self.logger.setLevel(logging.INFO)
 
     def execute(self, context):
         now = dt.utcnow()
@@ -58,13 +62,13 @@ class StartOperator(BasicOperator):
                 if delta.total_seconds() > 60*30: # 30 minutes
                     raise AirflowTaskTimeout()
 
-                print('lock: {}'.format(lock))
-                print('sleeping for 5 minutes')
+                self.logger.info('lock: {}'.format(lock))
+                self.logger.info('sleeping for 5 minutes')
                 time.sleep(60*5)
                 lock = self._get_lock()
 
             Variable.set('lock_{}'.format(self.dag.dag_id), True)
-            print('lock acquired')
+            self.logger.info('lock acquired')
 
         return BasicOperator.execute(self, context)
 
@@ -84,6 +88,6 @@ class FinishOperator(BasicOperator):
     def execute(self, context):
         if self.use_lock:
             Variable.set('lock_{}'.format(self.dag.dag_id), False)
-            print('lock released')
+            self.logger.info('lock released')
 
         return BasicOperator.execute(self, context)
