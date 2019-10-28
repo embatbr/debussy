@@ -2,6 +2,7 @@
 
 import json
 
+from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.operators.dataflow_operator import DataflowTemplateOperator
 
@@ -82,6 +83,36 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
         query = "SELECT {} FROM {}".format(', '.join(fields), self.table)
         self.parameters['query'] = query
 
+        ExtractorTemplateOperator.execute(self, context)
+
+class JDBCExtractorTemplateCustomQueryOperator(ExtractorTemplateOperator):
+    template_fields = ('sql_template_params', )
+
+    @apply_defaults
+    def __init__(self, project, config, table, driver_class_name, db_parameters,
+        bq_sink, query, sql_template_params, build_query, *args, **kwargs):
+        self.table = table
+        self.query = query
+        self.sql_template_params = sql_template_params
+        self.build_query = build_query(self)
+
+        task_id_sufix = 'table-{}'.format(self.table.lower())
+
+        self.parameters = {
+            'driverClassName': driver_class_name,
+            'query': "SELECT 1",
+            'bigQuerySink': bq_sink
+        }
+        
+        self.parameters.update(db_parameters)
+
+        ExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, self.parameters, *args, **kwargs
+        )
+
+    def execute(self, context):
+        self.parameters['query'] = self.build_query(context).format(**self.sql_template_params)
+        
         ExtractorTemplateOperator.execute(self, context)
 
 
