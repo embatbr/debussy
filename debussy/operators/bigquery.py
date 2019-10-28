@@ -9,7 +9,7 @@ from dags.debussy.helper import json_traverser
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.operators.bigquery_operator import BigQueryOperator
+from airflow.contrib.operators.bigquery_operator import BigQueryOperator, BigQueryCreateEmptyTableOperator
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -288,3 +288,119 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
 
     def execute(self, context):
         BigQueryTableOperator.execute(self, context)
+
+class BigQueryDropCreateTableOperator(BigQueryDropTableOperator, BigQueryCreateEmptyTableOperator):
+    def __init__(self, project_id, dataset_id, table_id, schema_fields, *args, **kwargs):
+        BigQueryDropTableOperator.__init__(
+            self, 
+            project_id=project_id, 
+            dataset_id=dataset_id, 
+            table_id=table_id, 
+            *args, **kwargs
+        )
+     
+        BigQueryCreateEmptyTableOperator.__init__(
+            self, 
+            task_id='drop_create_{}'.format(table_id),
+            project_id=project_id, 
+            dataset_id=dataset_id, 
+            table_id=table_id, 
+            schema_fields=schema_fields, 
+            *args, **kwargs
+        )
+    
+    @property
+    def operation(self):
+        return 'drop_create_table'
+
+    def execute(self, context):
+        BigQueryDropTableOperator.execute(self, context)
+
+        BigQueryCreateEmptyTableOperator.execute(self, context)
+
+class BigQueryGetMaxFieldOperator(BaseOperator):
+    SQL_TEMPLATE = """
+SELECT
+    {max_field} AS value
+FROM
+    `{project_id}.{dataset_id}.{table_id}`
+    """
+    def __init__(
+        self,
+        project_id,
+        dataset_id,
+        table_id,
+        field_id,
+        field_type,
+        format_string=None,
+        timezone=None,
+        bigquery_conn_id='bigquery_default', 
+        delegate_to=None,
+        *args,
+        **kwargs
+    ):
+        if field_type == 'TIMESTAMP':
+            max_field = 'FORMAT_TIMESTAMP("{}", MAX({}), "{}")'.format(
+                format_string if format_string else '%FT%T%z',
+                field_id,
+                timezone if timezone else 'UTC'
+            )
+        elif field_type == 'DATETIME':
+            max_field = 'FORMAT_DATETIME("{}", MAX({}))'.format(
+                format_string if format_string else '%FT%T',
+                field_id
+            )
+        elif field_type == 'DATE':
+            max_field = 'FORMAT_DATE(("{}", MAX({}))'.format(
+                format_string if format_string else '%F',
+                field_id
+            )
+        elif field_type == 'TIME':
+            max_field = 'FORMAT_TIME(("{}", MAX({}))'.format(
+                format_string if format_string else '%T',
+                field_id
+            )
+        elif field_type in ['FLOAT64', 'NUMERIC']:
+            max_field = 'FORMAT("{}", MAX({}))'.format(
+                format_string if format_string else '%f',
+                field_id
+            )
+        elif field_type == 'INT64':
+            max_field = 'FORMAT("{}", MAX({}))'.format(
+                format_string if format_string else '%d',
+                field_id
+            )
+        elif field_type == 'BOOLEAN':
+            max_field = 'CAST(MAX({}) AS STRING)'.format(
+                field_id
+            )
+        elif field_type == 'BYTES':
+            max_field = 'MAX(TO_BASE64({}))'.format(
+                field_id
+            )
+        else:
+            raise AirflowException('Unsupported type {} in BigQueryGetMaxFieldOperator'.format(field_type))
+
+        self.sql_template_params = {
+            'project_id': project_id,
+            'dataset_id': dataset_id,
+            'table_id': table_id,
+            'max_field': max_field
+        }
+
+        self.bigquery_conn_id = bigquery_conn_id
+        self.delegate_to = delegate_to
+
+        BaseOperator.__init__(self, *args, **kwargs)
+    
+    @property
+    def operation(self):
+        return 'get_max_value'
+
+    def execute(self, context):
+        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id, delegate_to=self.delegate_to, use_legacy_sql=False)
+        bq_cursor = bq_hook.get_conn().cursor()
+        sql = self.SQL_TEMPLATE.format(**self.sql_template_params)
+        bq_cursor.execute(sql)
+        result = bq_cursor.fetchall()
+        return result[0][0]
