@@ -52,7 +52,7 @@ class BingMapsHook(BaseHook):
         if operation == 'GET':
             response = requests.get(url, params=api_params)
 
-            if response and file_path:
+            if response and file_path and isinstance(file_path, str):
                 open(file_path, 'wb').write(response.content)
         elif operation == 'POST':
             with open(file_path,'r') as r:
@@ -64,7 +64,7 @@ class BingMapsHook(BaseHook):
         
         # when a file will be downloaded, we simply output the file_path (to prevent the entire document to be outputted)
         # else, we can safely output the response json
-        if file_path:
+        if file_path and isinstance(file_path, str):
             logging.info('File: {}'.format(file_path))
         else:
             logging.info(response.json())
