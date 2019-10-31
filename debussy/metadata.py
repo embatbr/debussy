@@ -31,6 +31,7 @@ class DatastoreMetadataWriter(object):
     def update(self, entity):
         self.client.put(entity)
 
+
 class DatastoreMetadataCopy(object):
     
     def __init__(self, project, namespace, kind):
