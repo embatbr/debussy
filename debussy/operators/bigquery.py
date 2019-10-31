@@ -4,7 +4,7 @@ import json
 
 from copy import deepcopy
 
-from dags.debussy.helper import json_traverser
+from dags.debussy.helper import json_traverser, bigquery_singlevalue_formatter
 
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -339,47 +339,13 @@ FROM
         *args,
         **kwargs
     ):
-        if field_type == 'TIMESTAMP':
-            max_field = 'FORMAT_TIMESTAMP("{}", MAX({}), "{}")'.format(
-                format_string if format_string else '%FT%T%z',
-                field_id,
-                timezone if timezone else 'UTC'
-            )
-        elif field_type == 'DATETIME':
-            max_field = 'FORMAT_DATETIME("{}", MAX({}))'.format(
-                format_string if format_string else '%FT%T',
-                field_id
-            )
-        elif field_type == 'DATE':
-            max_field = 'FORMAT_DATE(("{}", MAX({}))'.format(
-                format_string if format_string else '%F',
-                field_id
-            )
-        elif field_type == 'TIME':
-            max_field = 'FORMAT_TIME(("{}", MAX({}))'.format(
-                format_string if format_string else '%T',
-                field_id
-            )
-        elif field_type in ['FLOAT64', 'NUMERIC']:
-            max_field = 'FORMAT("{}", MAX({}))'.format(
-                format_string if format_string else '%f',
-                field_id
-            )
-        elif field_type == 'INT64':
-            max_field = 'FORMAT("{}", MAX({}))'.format(
-                format_string if format_string else '%d',
-                field_id
-            )
-        elif field_type == 'BOOLEAN':
-            max_field = 'CAST(MAX({}) AS STRING)'.format(
-                field_id
-            )
-        elif field_type == 'BYTES':
-            max_field = 'MAX(TO_BASE64({}))'.format(
-                field_id
-            )
-        else:
-            raise AirflowException('Unsupported type {} in BigQueryGetMaxFieldOperator'.format(field_type))
+        max_field = bigquery_singlevalue_formatter(
+            aggregation_function='MAX',
+            field_id=field_id,
+            field_type=field_type,
+            format_string=format_string,
+            timezone=timezone
+        )
 
         self.sql_template_params = {
             'project_id': project_id,
@@ -403,4 +369,5 @@ FROM
         sql = self.SQL_TEMPLATE.format(**self.sql_template_params)
         bq_cursor.execute(sql)
         result = bq_cursor.fetchall()
+        # getting the 1st cell of the 1st row of the resultset
         return result[0][0]
