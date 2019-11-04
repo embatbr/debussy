@@ -18,6 +18,57 @@ def json_traverser(doc, level=''):
             # exclude the first dot. There should be no problem even if the it's the root level
             yield (item, level[1:])
 
+def bigquery_singlevalue_formatter(aggregation_function, field_id, field_type, format_string=None, timezone=None):
+    if field_type == 'TIMESTAMP':
+        max_field = 'FORMAT_TIMESTAMP("{}", {}({}), "{}")'.format(
+            format_string if format_string else '%FT%T%z',
+            aggregation_function,
+            field_id,
+            timezone if timezone else 'UTC'
+        )
+    elif field_type == 'DATETIME':
+        max_field = 'FORMAT_DATETIME("{}", {}({}))'.format(
+            format_string if format_string else '%FT%T',
+            aggregation_function,
+            field_id
+        )
+    elif field_type == 'DATE':
+        max_field = 'FORMAT_DATE(("{}", {}({}))'.format(
+            format_string if format_string else '%F',
+            aggregation_function,
+            field_id
+        )
+    elif field_type == 'TIME':
+        max_field = 'FORMAT_TIME(("{}", {}({}))'.format(
+            format_string if format_string else '%T',
+            aggregation_function,
+            field_id
+        )
+    elif field_type in ['FLOAT64', 'NUMERIC']:
+        max_field = 'FORMAT("{}", {}({}))'.format(
+            format_string if format_string else '%f',
+            aggregation_function,
+            field_id
+        )
+    elif field_type == 'INT64':
+        max_field = 'FORMAT("{}", {}({}))'.format(
+            format_string if format_string else '%d',
+            aggregation_function,
+            field_id
+        )
+    elif field_type == 'BOOLEAN':
+        max_field = 'CAST({}({}) AS STRING)'.format(
+            aggregation_function,
+            field_id
+        )
+    elif field_type == 'BYTES':
+        max_field = '{}(TO_BASE64({}))'.format(
+            aggregation_function,
+            field_id
+        )
+    else:
+        raise AirflowException('Unsupported type {} in bigquery_singlevalue_formatter'.format(field_type))
+
 if __name__ == "__main__":
     data = json.loads(
     """[{"type":"STRING","name":"ngram","mode":"NULLABLE"},{"type":"STRING","name":"first","mode":"NULLABLE"},
