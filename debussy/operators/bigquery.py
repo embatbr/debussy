@@ -71,10 +71,12 @@ class BigQueryTableOperator(BigQueryOperator):
         )
 
     def execute(self, context):
+        # TODO checar se 'hasattr' contempla
         try:
             self.sql = self.SQL_TEMPLATE.format(**self.sql_template_params)
         except AttributeError:
             self.sql = self.sql.format(**self.sql_template_params)
+
         BigQueryOperator.execute(self, context)
 
 
@@ -144,7 +146,7 @@ FROM
     def __init__(self, project, table, config, target_table_path, source_table_path,
         conversor_wrapper, *args, **kwargs):
         self.config = config
-        self.conversor = conversor_wrapper(self)
+        self.conversor_wrapper = conversor_wrapper
 
         sql_template_params = {
             'target_table_path': target_table_path,
@@ -177,7 +179,9 @@ FROM
         return 'raw2clean'
 
     def execute(self, context):
-        converted_fields = self.conversor(self.table)
+        conversor = self.conversor_wrapper(self)
+
+        converted_fields = conversor()
         converted_fields = ",\n    ".join(converted_fields)
         self.sql_template_params['source_table_fields_converted'] = converted_fields
 

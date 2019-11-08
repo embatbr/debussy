@@ -19,6 +19,8 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
         parameters['project'] = project
 
+        self.extra_func_wrappers = kwargs.get('extra_funcs', [])
+
         DataflowTemplateOperator.__init__(
             self,
             task_id='extract-{}'.format(task_id_sufix),
@@ -30,6 +32,10 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
         )
 
     def execute(self, context):
+        for extra_func_wrapper in self.extra_func_wrappers:
+            extra_func_internal = extra_func_wrapper(self)
+            extra_func_internal(context)
+
         DataflowTemplateOperator.execute(self, context)
 
 
