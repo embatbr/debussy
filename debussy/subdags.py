@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+# TODO MAKE ME A PACKAGE!
+
 from datetime import datetime as dt
 from datetime import timedelta as td
 from copy import deepcopy
@@ -122,7 +124,7 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
     """Creates a subdag that notifies a given message in a slack channel.
     """
     def _internal(begin_task, end_task):
-        notification_task = SlackOperator(env_level, phase, message, **default_args)
+        notification_task = SlackOperator(phase, message, **default_args)
         begin_task >> notification_task >> end_task
 
     return _create_subdag(
