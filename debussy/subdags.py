@@ -26,7 +26,8 @@ from dags.debussy.operators.python import MonthlyBranchPython
 # INTERNALS BEGIN
 
 
-def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
+def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args,
+    trigger_rule='all_success'):
     """Creates a subdag, initiated by a StartOperator and ended by a FinishOperator.
     Also, uses an internal function, passed as argument, to create the other subdag
     operators in between.
@@ -38,9 +39,9 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args):
         default_args=default_args
     )
 
-    begin_task = StartOperator(phase, trigger_rule='all_done', **default_args)
+    begin_task = StartOperator(phase, trigger_rule=trigger_rule, **default_args)
     subdag >> begin_task
-    end_task = FinishOperator(phase, trigger_rule='all_done', **default_args)
+    end_task = FinishOperator(phase, trigger_rule=trigger_rule, **default_args)
     subdag >> end_task
     subdag_func(begin_task, end_task)
 
@@ -156,11 +157,9 @@ def create_datastore_bigquery_mirror_subdag(parent_dag, project_params, converso
         default_args
     )
 
-def create_simple_pyspark_subdag(
-    parent_dag, project_params, zone, region,
-    storage_bucket, subnetwork_uri, main_file, extra_files,
-    job_name, arguments, default_args
-):
+def create_simple_pyspark_subdag(parent_dag, project_params, zone, region,
+    storage_bucket, subnetwork_uri, main_file, extra_files, job_name, arguments,
+    default_args):
     """Creates a simplified Dataproc cluster for processing a PySpark script.
     To make things as simple as possible, the cluster is fixed as a standard-2 master (no HA),
     4 standard-4 workers (2 of which preemptible), 200gb fixed disk size and GCS/BQ
@@ -237,7 +236,8 @@ def create_simple_pyspark_subdag(
         parent_dag,
         'pyspark-{}'.format(job_name),
         job_name,
-        default_args
+        default_args,
+        trigger_rule='all_done'
     )
 
 # EXTERNALS END
