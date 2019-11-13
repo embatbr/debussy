@@ -115,6 +115,70 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
     )
 
 
+def _create_full_load_to_bigquery(parent_dag, project_params, extractor_class,
+    conversor_wrapper, task_id_format, default_args):
+    """Creates a subdag to perform a full load of a table from a given source to BigQuery.
+    """
+    project_id = project_params['project_id']
+    config = project_params['config']
+
+    extractor_params = dict(project_params['extract'])
+    extractor_params['project'] = project_id
+    extractor_params['config'] = config
+    extractor_params.update(default_args)
+
+    bigquery_params = dict(project_params['bigquery'])
+    bigquery_pool = bigquery_params['pool']
+    bigquery_table = bigquery_params['table']
+    raw_table_name = bigquery_params['raw_table_name']
+    clean_table_name = bigquery_params['clean_table_name']
+
+    def _internal(begin_task, end_task):
+        bq_flush_raw_task = BigQueryTableFlushOperator(
+            project=project_id,
+            config=config,
+            table=bigquery_table,
+            target_table_path=raw_table_name,
+            pool=bigquery_pool,
+            task_id='flush-raw-table-{}'.format(bigquery_table),
+            **default_args
+        )
+
+        extract_task = extractor_class(**extractor_params)
+
+        bq_flush_clean_task = BigQueryTableFlushOperator(
+            project=project_id,
+            config=config,
+            table=bigquery_table,
+            target_table_path=clean_table_name,
+            task_id='flush-clean-table-{}'.format(bigquery_table),
+            pool=bigquery_pool,
+            **default_args
+        )
+
+        raw2clean_task = BigQueryRawToClean(
+            project=project_id,
+            config=config,
+            table=bigquery_table,
+            target_table_path=clean_table_name,
+            source_table_path=raw_table_name,
+            conversor_wrapper=conversor_wrapper,
+            pool=bigquery_pool,
+            **default_args
+        )
+
+        begin_task >> bq_flush_raw_task >> extract_task >> bq_flush_clean_task
+        bq_flush_clean_task >> raw2clean_task >> end_task
+
+    return _create_subdag(
+        _internal,
+        parent_dag,
+        task_id_format.format(bigquery_table),
+        bigquery_table,
+        default_args
+    )
+
+
 # INTERNALS END
 
 # EXTERNALS BEGIN
@@ -138,12 +202,28 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
 
 def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
     default_args):
+    """Creates a subdag for incremental mirroring of a SQL Server table into BigQuery.
+    """
     return _create_bigquery_mirror_subdag(
         parent_dag,
         project_params,
         JDBCExtractorTemplateOperator,
         conversor_wrapper,
         'table_{}_mirror_subdag',
+        default_args
+    )
+
+
+def create_sqlserver_bigquery_full_load_subdag(parent_dag, project_params, conversor_wrapper,
+    default_args):
+    """Creates a subdag for full load of a SQL Server table into BigQuery.
+    """
+    return _create_full_load_to_bigquery(
+        parent_dag,
+        project_params,
+        JDBCExtractorTemplateOperator,
+        conversor_wrapper,
+        'table_{}_full_load_subdag',
         default_args
     )
 

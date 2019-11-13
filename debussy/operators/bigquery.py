@@ -9,7 +9,8 @@ from dags.debussy.helper import json_traverser, bigquery_singlevalue_formatter
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.operators.bigquery_operator import BigQueryOperator, BigQueryCreateEmptyTableOperator
+from airflow.contrib.operators.bigquery_operator import BigQueryOperator
+from airflow.contrib.operators.bigquery_operator import BigQueryCreateEmptyTableOperator
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -296,23 +297,23 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
 class BigQueryDropCreateTableOperator(BigQueryDropTableOperator, BigQueryCreateEmptyTableOperator):
     def __init__(self, project_id, dataset_id, table_id, schema_fields, *args, **kwargs):
         BigQueryDropTableOperator.__init__(
-            self, 
-            project_id=project_id, 
-            dataset_id=dataset_id, 
-            table_id=table_id, 
+            self,
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
             *args, **kwargs
         )
-     
+
         BigQueryCreateEmptyTableOperator.__init__(
-            self, 
+            self,
             task_id='drop_create_{}'.format(table_id),
-            project_id=project_id, 
-            dataset_id=dataset_id, 
-            table_id=table_id, 
-            schema_fields=schema_fields, 
+            project_id=project_id,
+            dataset_id=dataset_id,
+            table_id=table_id,
+            schema_fields=schema_fields,
             *args, **kwargs
         )
-    
+
     @property
     def operation(self):
         return 'drop_create_table'
@@ -338,7 +339,7 @@ FROM
         field_type,
         format_string=None,
         timezone=None,
-        bigquery_conn_id='bigquery_default', 
+        bigquery_conn_id='bigquery_default',
         delegate_to=None,
         *args,
         **kwargs
@@ -362,7 +363,7 @@ FROM
         self.delegate_to = delegate_to
 
         BaseOperator.__init__(self, *args, **kwargs)
-    
+
     @property
     def operation(self):
         return 'get_max_value'
