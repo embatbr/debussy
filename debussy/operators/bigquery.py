@@ -363,7 +363,6 @@ FROM
         self.delegate_to = delegate_to
 
         BaseOperator.__init__(self, *args, **kwargs)
-
     @property
     def operation(self):
         return 'get_max_value'
