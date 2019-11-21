@@ -77,16 +77,17 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
     clean_table_name = bigquery_params['clean_table_name']
 
     def _internal(begin_task, end_task):
-        bq_flush_task = BigQueryTableFlushOperator(
+        datastore_get_task = DatastoreGetObjectOperator(**metadata_params_get)
+
+        bq_flush_raw_task = BigQueryTableFlushOperator(
             project=project_id,
             config=config,
             table=bigquery_table,
             target_table_path=raw_table_name,
             pool=bigquery_pool,
+            task_id='flush-raw-table-{}'.format(bigquery_table),
             **default_args
         )
-
-        datastore_get_task = DatastoreGetObjectOperator(**metadata_params_get)
 
         extract_task = extractor_class(**extractor_params)
 
@@ -103,7 +104,7 @@ def _create_bigquery_mirror_subdag(parent_dag, project_params, extractor_class,
 
         datastore_put_task = DatastorePutObjectOperator(**metadata_params_put)
 
-        begin_task >> bq_flush_task >> datastore_get_task >> extract_task
+        begin_task >> datastore_get_task >> bq_flush_raw_task >> extract_task
         extract_task >> raw2clean_task >> datastore_put_task >> end_task
 
     return _create_subdag(

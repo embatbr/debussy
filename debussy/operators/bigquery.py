@@ -159,7 +159,7 @@ FROM
             project=project,
             table=table,
             sql_template_params=sql_template_params,
-            # write_disposition='WRITE_APPEND',
+            write_disposition='WRITE_APPEND',
             create_disposition='CREATE_NEVER',
             *args,
             **kwargs
