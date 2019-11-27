@@ -203,6 +203,22 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
 
 def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
     default_args):
+    """DEPRECATED
+
+    Creates a subdag for incremental mirroring of a SQL Server table into BigQuery.
+    """
+    return _create_bigquery_mirror_subdag(
+        parent_dag,
+        project_params,
+        JDBCExtractorTemplateOperator,
+        conversor_wrapper,
+        'table_{}_mirror_subdag',
+        default_args
+    )
+
+
+def create_jdbc_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
+    default_args):
     """Creates a subdag for incremental mirroring of a SQL Server table into BigQuery.
     """
     return _create_bigquery_mirror_subdag(
