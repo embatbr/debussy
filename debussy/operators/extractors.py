@@ -109,7 +109,7 @@ class JDBCExtractorTemplateCustomQueryOperator(ExtractorTemplateOperator):
             'query': "SELECT 1",
             'bigQuerySink': bq_sink
         }
-        
+
         self.parameters.update(db_parameters)
 
         ExtractorTemplateOperator.__init__(
@@ -118,7 +118,7 @@ class JDBCExtractorTemplateCustomQueryOperator(ExtractorTemplateOperator):
 
     def execute(self, context):
         self.parameters['query'] = self.build_query(context).format(**self.sql_template_params)
-        
+
         ExtractorTemplateOperator.execute(self, context)
 
 
