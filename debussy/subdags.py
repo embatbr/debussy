@@ -13,13 +13,15 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.executors.celery_executor import CeleryExecutor
 
 from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
-from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator, DataProcPySparkOperator
+from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
+from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
 from dags.debussy.operators.basic import StartOperator, FinishOperator
 from dags.debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
 from dags.debussy.operators.datastore import DatastoreGetObjectOperator
 from dags.debussy.operators.datastore import DatastorePutObjectOperator
 from dags.debussy.operators.extractors import DatastoreExtractorTemplateOperator
+from dags.debussy.operators.extractors import JDBCExtractorTemplateCustomQueryOperator
 from dags.debussy.operators.extractors import JDBCExtractorTemplateOperator
 from dags.debussy.operators.notification import SlackOperator
 from dags.debussy.operators.python import MonthlyBranchPython
@@ -52,6 +54,40 @@ def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args,
         task_id=task_id,
         dag=parent_dag,
         executor=CeleryExecutor()
+    )
+
+
+def _create_bigquery_simple_mirror_subdag(parent_dag, project_params, extractor_class,
+    task_id_format, default_args):
+    """Creates a subdag for simple mirroring, without "raw" and "clean" stages.
+    """
+    project_id = project_params['project_id']
+    config = project_params['config']
+
+    metadata_params_get = dict(project_params['metadata_params_get'])
+    metadata_params_put = dict(project_params['metadata_params_put'])
+
+    extractor_params = dict(project_params['extract'])
+    extractor_params['project'] = project_id
+    extractor_params['config'] = config
+    extractor_params.update(default_args)
+
+    table = extractor_params['table']
+
+    def _internal(begin_task, end_task):
+        datastore_get_task = DatastoreGetObjectOperator(**metadata_params_get)
+        extract_task = extractor_class(**extractor_params)
+        datastore_put_task = DatastorePutObjectOperator(**metadata_params_put)
+
+        begin_task >> datastore_get_task >> extract_task >> datastore_put_task
+        datastore_put_task >> end_task
+
+    return _create_subdag(
+        _internal,
+        parent_dag,
+        task_id_format.format(table),
+        table,
+        default_args
     )
 
 
@@ -201,7 +237,33 @@ def create_notification_subdag(parent_dag, env_level, phase, message, default_ar
     )
 
 
+def create_jdbc_bigquery_simple_mirror_subdag(parent_dag, project_params, default_args):
+    return _create_bigquery_simple_mirror_subdag(
+        parent_dag,
+        project_params,
+        JDBCExtractorTemplateCustomQueryOperator,
+        'table_{}_simple_mirror_subdag',
+        default_args
+    )
+
+
 def create_sqlserver_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
+    default_args):
+    """DEPRECATED
+
+    Creates a subdag for incremental mirroring of a SQL Server table into BigQuery.
+    """
+    return _create_bigquery_mirror_subdag(
+        parent_dag,
+        project_params,
+        JDBCExtractorTemplateOperator,
+        conversor_wrapper,
+        'table_{}_mirror_subdag',
+        default_args
+    )
+
+
+def create_jdbc_bigquery_mirror_subdag(parent_dag, project_params, conversor_wrapper,
     default_args):
     """Creates a subdag for incremental mirroring of a SQL Server table into BigQuery.
     """
