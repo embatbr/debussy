@@ -13,7 +13,7 @@ class DatastoreGetObjectOperator(BaseOperator):
 
     def __init__(self, project, control, namespace, kind, metadata_converter, task_id=None, filters=[],
         *args, **kwargs):
-        
+
         BaseOperator.__init__(
             self,
             task_id=task_id if task_id else 'datastore_get_{}_{}'.format(namespace, kind),
@@ -85,7 +85,7 @@ class DatastoreCopyObjectOperator(DatastoreGetObjectOperator):
             *args,
             **kwargs
         )
-        
+
         self.task_id='datastore_copy_{}_{}'.format(source_kind, dest_kind)
         self.metadata_updater = metadata_updater(self)
         self.dest_namespace = dest_namespace
