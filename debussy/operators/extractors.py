@@ -161,3 +161,23 @@ class DatastoreExtractorTemplateOperator(QueryExtractorTemplateOperator):
         self.parameters['whiteListString'] = white_list_string
 
         QueryExtractorTemplateOperator.execute(self, context)
+
+class BigQueryJDBCTemplateOperator(ExtractorTemplateOperator):
+    def __init__(
+        self,
+        project,
+        config,
+        table,
+        db_parameters,
+        *args,
+        **kwargs
+    ):
+        self.table = table
+        task_id_sufix = 'table-{}'.format(self.table.lower())
+
+        ExtractorTemplateOperator.__init__(
+            self, project, config, task_id_sufix, db_parameters, *args, **kwargs
+        )
+    
+    def execute(self, context):
+        ExtractorTemplateOperator.execute(self, context)
