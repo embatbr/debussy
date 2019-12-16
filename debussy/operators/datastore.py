@@ -44,10 +44,11 @@ class DatastoreGetObjectOperator(BaseOperator):
 
 class DatastorePutObjectOperator(DatastoreGetObjectOperator):
 
-    def __init__(self, project, control, namespace, kind, metadata_updater, filters=[],
+    def __init__(self, project, control, namespace, kind, metadata_updater, task_id=None, filters=[],
         *args, **kwargs):
         DatastoreGetObjectOperator.__init__(
             self,
+            task_id=task_id if task_id else 'datastore_put_{}_{}'.format(namespace, kind).format(namespace, kind),
             project=project,
             control=control,
             namespace=namespace,
@@ -58,7 +59,6 @@ class DatastorePutObjectOperator(DatastoreGetObjectOperator):
             **kwargs
         )
 
-        self.task_id='datastore_put_{}_{}'.format(namespace, kind)
         self.metadata_updater = metadata_updater(self)
 
     def execute(self, context):
@@ -72,10 +72,11 @@ class DatastorePutObjectOperator(DatastoreGetObjectOperator):
 
 class DatastoreCopyObjectOperator(DatastoreGetObjectOperator):
 
-    def __init__(self, project, control, source_namespace, source_kind, dest_namespace, dest_kind, metadata_updater, filters=[],
+    def __init__(self, project, control, source_namespace, source_kind, dest_namespace, dest_kind, metadata_updater, task_id=None, filters=[],
         *args, **kwargs):
         DatastoreGetObjectOperator.__init__(
             self,
+            task_id=task_id if task_id else 'datastore_copy_{}_{}'.format(source_kind, dest_kind),
             project=project,
             control=control,
             namespace=source_namespace,

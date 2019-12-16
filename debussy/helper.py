@@ -68,6 +68,8 @@ def bigquery_singlevalue_formatter(aggregation_function, field_id, field_type, f
         )
     else:
         raise AirflowException('Unsupported type {} in bigquery_singlevalue_formatter'.format(field_type))
+    
+    return max_field
 
 if __name__ == "__main__":
     data = json.loads(
