@@ -87,7 +87,6 @@ class DatastoreCopyObjectOperator(DatastoreGetObjectOperator):
             **kwargs
         )
 
-        self.task_id='datastore_copy_{}_{}'.format(source_kind, dest_kind)
         self.metadata_updater = metadata_updater(self)
         self.dest_namespace = dest_namespace
         self.dest_kind = dest_kind
