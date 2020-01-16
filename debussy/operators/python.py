@@ -4,6 +4,7 @@ from datetime import datetime
 
 from airflow.operators.python_operator import BranchPythonOperator
 
+
 def check_month_day(ds, **kwargs):
     date = datetime.strptime(ds, '%Y-%m-%d')
 
@@ -24,7 +25,7 @@ class MonthlyBranchPython(BranchPythonOperator):
     :type false_result_task: str
     """
     def __init__(self, day, true_result_task, false_result_task, *args, **kwargs):
-        
+
         BranchPythonOperator.__init__(
             self,
             task_id='check_month_day{}'.format(day),
@@ -38,10 +39,10 @@ class MonthlyBranchPython(BranchPythonOperator):
             *args,
             **kwargs
         )
-    
+
     @property
     def operation(self):
         return 'check_month_day'
-    
+
     def execute(self, context):
         BranchPythonOperator.execute(self, context)

@@ -1,4 +1,7 @@
+# -*- coding: utf-8 -*-
+
 import json
+
 
 def json_traverser(doc, level=''):
     """Function to help traverse a dict with a JSON BigQuery schema definition (more info at: https://cloud.google.com/bigquery/docs/schemas).

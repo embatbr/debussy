@@ -6,7 +6,7 @@ import logging
 
 from airflow.models import BaseOperator
 
-from dags.debussy.metadata import DatastoreMetadataReader, DatastoreMetadataWriter, DatastoreMetadataCopy
+from debussy.metadata import DatastoreMetadataReader, DatastoreMetadataWriter, DatastoreMetadataCopy
 
 
 class DatastoreGetObjectOperator(BaseOperator):

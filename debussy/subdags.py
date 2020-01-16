@@ -16,15 +16,15 @@ from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOper
 from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
 
-from dags.debussy.operators.basic import StartOperator, FinishOperator
-from dags.debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
-from dags.debussy.operators.datastore import DatastoreGetObjectOperator
-from dags.debussy.operators.datastore import DatastorePutObjectOperator
-from dags.debussy.operators.extractors import DatastoreExtractorTemplateOperator
-from dags.debussy.operators.extractors import JDBCExtractorTemplateCustomQueryOperator
-from dags.debussy.operators.extractors import JDBCExtractorTemplateOperator
-from dags.debussy.operators.notification import SlackOperator
-from dags.debussy.operators.python import MonthlyBranchPython
+from debussy.operators.basic import StartOperator, FinishOperator
+from debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
+from debussy.operators.datastore import DatastoreGetObjectOperator
+from debussy.operators.datastore import DatastorePutObjectOperator
+from debussy.operators.extractors import DatastoreExtractorTemplateOperator
+from debussy.operators.extractors import JDBCExtractorTemplateCustomQueryOperator
+from debussy.operators.extractors import JDBCExtractorTemplateOperator
+from debussy.operators.notification import SlackOperator
+from debussy.operators.python import MonthlyBranchPython
 
 
 # INTERNALS BEGIN

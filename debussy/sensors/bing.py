@@ -3,14 +3,15 @@
 from airflow.exceptions import AirflowException
 from airflow.utils.decorators import apply_defaults
 from airflow.operators.sensors import BaseSensorOperator
-from dags.debussy.hooks.bing import BingMapsHook
+from debussy.hooks.bing import BingMapsHook
+
 
 class BingMapsJobSensor(BaseSensorOperator):
     """Operator that takes a BingMapsCreateJob operator, gets the Id of the job created and polls the job status from the Geocode endpoint.
     .. seealso::
         Follow a walkthrough of the Bing Maps Geocode Batch Job at:
         https://docs.microsoft.com/en-us/bingmaps/spatial-data-services/geocode-dataflow-api/geocode-dataflow-walkthrough
-    
+
     :param create_job_task: name of the BingMapsCreateJob operator. Must be in the same DAG/SubDag as this operator to work (templated)
     :type create_job_task: str
     :param bing_maps_conn_id: name of the HTPP connection with the Bing Geocode endpoint and Key
@@ -39,7 +40,7 @@ class BingMapsJobSensor(BaseSensorOperator):
         # calling the endpoint to get the job status
         bm_hook = BingMapsHook(bing_maps_conn_id=self.bing_maps_conn_id)
         response = bm_hook.call(method=job_id, operation='GET', api_params={'output': 'json'})
-        
+
         # if the response was successfull
         if response:
             # check the status of the job - Aborted is a failure case, pending is waiting and Completed is a success

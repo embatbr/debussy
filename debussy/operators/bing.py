@@ -3,11 +3,11 @@
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from dags.debussy.hooks.bing import BingMapsHook
+from debussy.hooks.bing import BingMapsHook
 
 class BingMapsCreateJobOperator(BaseOperator):
     """Operator that takes a file from GCS, saves it locally at the data folder (in Composer, the data folder is GCSFuse mounted),
-    and then sends it to the Bing Maps Batch Geocode Endpoint. 
+    and then sends it to the Bing Maps Batch Geocode Endpoint.
     An HTTP connection must be provided with the URL and Bing Maps key previously configured.
     The operator is fixed expecting a PIPE delimited file, and it will always include the extra header indicating that the 2.0 version of the Geocode is to be used.
     Also, since the column header requires the use of "/" parameters in the name to match the requested names on the Bing Maps process, but it can happen that
@@ -15,7 +15,7 @@ class BingMapsCreateJobOperator(BaseOperator):
     .. seealso::
         Follow a walkthrough of the Bing Maps Geocode Batch Job at:
         https://docs.microsoft.com/en-us/bingmaps/spatial-data-services/geocode-dataflow-api/geocode-dataflow-walkthrough
-    
+
     :param gcs_file_path: field with the file to be downloaded from a GCS bucket. Only 1 file is currently supported.
         Should be in the form gs://bucket/path/file.extension (templated)
     :type gcs_file_path: str
@@ -28,9 +28,9 @@ class BingMapsCreateJobOperator(BaseOperator):
     def __init__(self, gcs_file_path, bing_maps_conn_id='bing_maps_default', *args, **kwargs):
         self.gcs_file_path = gcs_file_path
         self.bing_maps_conn_id = bing_maps_conn_id
-        
+
         BaseOperator.__init__(self, task_id=self.operation, *args, **kwargs)
-    
+
     @property
     def operation(self):
         return 'bing_maps_create_job'
@@ -46,11 +46,11 @@ class BingMapsCreateJobOperator(BaseOperator):
         file_path = '/'.join(file_parts[3:-1])
         # getting the file name
         file_name = file_parts[-1]
-        
+
         # setting the local path and preparing a "Ready" path for the prepared file
         local_file_path = '/home/airflow/gcs/data' + self.gcs_file_path[self.gcs_file_path.rindex('/'):]
         prepared_file_path = '/home/airflow/gcs/data/Ready_{}'.format(self.gcs_file_path[self.gcs_file_path.rindex('/')+1:])
-        
+
         gcs_hook.download(bucket, '{}/{}'.format(file_path, file_name), local_file_path)
 
         # adding the version header
@@ -80,7 +80,7 @@ class BingMapsDownloadJobOperator(BaseOperator):
     .. seealso::
         Follow a walkthrough of the Bing Maps Geocode Batch Job at:
         https://docs.microsoft.com/en-us/bingmaps/spatial-data-services/geocode-dataflow-api/geocode-dataflow-walkthrough
-    
+
     :param create_job_task: name of the BingMapsCreateJob to be downloaded. Must be in the same DAG/SubDag as this operator to work (templated)
     :type create_job_task: str
     :param gcs_file_path: field with the file name to be uploaded to a GCS bucket. Only 1 file is currently supported.
@@ -93,22 +93,22 @@ class BingMapsDownloadJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, 
-        create_job_task, 
-        gcs_file_path, 
-        bing_maps_conn_id='bing_maps_default', 
+        self,
+        create_job_task,
+        gcs_file_path,
+        bing_maps_conn_id='bing_maps_default',
         *args, **kwargs
     ):
         self.gcs_file_path = gcs_file_path
         self.create_job_task = create_job_task
         self.bing_maps_conn_id = bing_maps_conn_id
-        
+
         BaseOperator.__init__(self, task_id=self.operation, *args, **kwargs)
 
     @property
     def operation(self):
         return 'bing_maps_download_job'
-    
+
     def execute(self, context):
         gcs_hook = GoogleCloudStorageHook()
 
@@ -120,11 +120,11 @@ class BingMapsDownloadJobOperator(BaseOperator):
         file_path = '/'.join(file_parts[3:-1])
         # getting the file name
         file_name = file_parts[-1]
-        
+
         # setting the local path with a "Pre" and preparing a processed path for the file
         local_file_path = '/home/airflow/gcs/data/Pre_{}'.format(file_name)
         prepared_file_path = '/home/airflow/gcs/data/{}'.format(file_name)
-        
+
         # obtaining the Geocode job id
         task_instance = context['task_instance']
         create_resp = task_instance.xcom_pull(task_ids=self.create_job_task)

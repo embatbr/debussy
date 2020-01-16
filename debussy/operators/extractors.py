@@ -24,7 +24,7 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
         DataflowTemplateOperator.__init__(
             self,
-            task_id='extract-{}'.format(task_id_sufix),
+            task_id='extract-{}'.format(task_id_sufix).replace('_', '-'),
             template=template_location,
             parameters=parameters,
             poll_sleep=60,
@@ -117,6 +117,10 @@ class JDBCExtractorTemplateCustomQueryOperator(ExtractorTemplateOperator):
         )
 
     def execute(self, context):
+        print()
+        print('JDBCExtractorTemplateCustomQueryOperator:', self.task_id)
+        print()
+
         self.parameters['query'] = self.build_query(context).format(**self.sql_template_params)
 
         ExtractorTemplateOperator.execute(self, context)

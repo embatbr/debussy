@@ -4,7 +4,7 @@ import json
 
 from copy import deepcopy
 
-from dags.debussy.helper import json_traverser, bigquery_singlevalue_formatter
+from debussy.helper import json_traverser, bigquery_singlevalue_formatter
 
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
