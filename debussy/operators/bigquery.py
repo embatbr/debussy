@@ -222,6 +222,9 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
             *
         FROM
             `{source_table}`
+        WHERE
+            true
+            {where_clause}
     ) AS s
     ON
         {join_clause}
@@ -242,6 +245,7 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
         table_schema,
         update_fields_ignore=[],
         insert_fields_ignore=[],
+        where_clause='',
         *args,
         **kwargs
     ):
@@ -278,7 +282,8 @@ class BigQueryMergeTableOperator(BigQueryTableOperator):
             'source_table': source_table,
             'join_clause': join_clause,
             'update_clause': update_clause,
-            'insert_list': insert_list
+            'insert_list': insert_list,
+            'where_clause': where_clause
         }
 
         # using the destination table as the base, we split it to supply the required params for the parent operator
