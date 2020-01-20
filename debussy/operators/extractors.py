@@ -24,7 +24,7 @@ class ExtractorTemplateOperator(DataflowTemplateOperator):
 
         DataflowTemplateOperator.__init__(
             self,
-            task_id='extract-{}'.format(task_id_sufix).replace('_', '-'),
+            task_id='extract-{}'.format(task_id_sufix),
             template=template_location,
             parameters=parameters,
             poll_sleep=60,
@@ -91,6 +91,7 @@ class JDBCExtractorTemplateOperator(ExtractorTemplateOperator):
 
         ExtractorTemplateOperator.execute(self, context)
 
+
 class JDBCExtractorTemplateCustomQueryOperator(ExtractorTemplateOperator):
     template_fields = ('sql_template_params', )
 
@@ -117,10 +118,6 @@ class JDBCExtractorTemplateCustomQueryOperator(ExtractorTemplateOperator):
         )
 
     def execute(self, context):
-        print()
-        print('JDBCExtractorTemplateCustomQueryOperator:', self.task_id)
-        print()
-
         self.parameters['query'] = self.build_query(context).format(**self.sql_template_params)
 
         ExtractorTemplateOperator.execute(self, context)
@@ -182,6 +179,6 @@ class BigQueryJDBCTemplateOperator(ExtractorTemplateOperator):
         ExtractorTemplateOperator.__init__(
             self, project, config, task_id_sufix, db_parameters, *args, **kwargs
         )
-    
+
     def execute(self, context):
         ExtractorTemplateOperator.execute(self, context)
