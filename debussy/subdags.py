@@ -11,13 +11,15 @@ from airflow import DAG
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.executors.celery_executor import CeleryExecutor
+from airflow.operators.python_operator import ShortCircuitOperator
 
 from airflow.contrib.operators.bigquery_to_gcs import BigQueryToCloudStorageOperator
 from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
 from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
+from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 
 from debussy.operators.basic import StartOperator, FinishOperator
-from debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean
+from debussy.operators.bigquery import BigQueryTableFlushOperator, BigQueryRawToClean, BigQueryDropTableOperator
 from debussy.operators.datastore import DatastoreGetObjectOperator
 from debussy.operators.datastore import DatastorePutObjectOperator
 from debussy.operators.extractors import DatastoreExtractorTemplateOperator
@@ -25,9 +27,19 @@ from debussy.operators.extractors import JDBCExtractorTemplateCustomQueryOperato
 from debussy.operators.extractors import JDBCExtractorTemplateOperator
 from debussy.operators.notification import SlackOperator
 from debussy.operators.python import MonthlyBranchPython
+from debussy.operators.gcs_delete_operator import GoogleCloudStorageDeleteOperator
 
 
 # INTERNALS BEGIN
+def _check_execution_flag(flag_diario, flag_semanal, flag_mensal, **kwargs):
+    if(flag_diario):
+        return True
+    elif(flag_semanal and kwargs['execution_date'].weekday() == 6):
+        return True
+    elif(flag_mensal and kwargs['execution_date'].day == 1):
+        return True
+    else:
+        return False
 
 
 def _create_subdag(subdag_func, parent_dag, task_id, phase, default_args,
@@ -216,6 +228,59 @@ def _create_full_load_to_bigquery(parent_dag, project_params, extractor_class,
     )
 
 
+def _create_query_export_to_gcs(parent_dag, project_params, table_params, default_args):
+    table = table_params['table']
+
+    def _internal(begin_task, end_task):
+        check = ShortCircuitOperator(
+            task_id='check_{}'.format(table),
+            provide_context=True,
+            python_callable=_check_execution_flag,
+            op_args=[table_params['flag_diario'], table_params['flag_semanal'], table_params['flag_mensal']],
+            **default_args
+        )
+
+        clean_gcs = GoogleCloudStorageDeleteOperator(
+            task_id='clean_gcs_{}'.format(table),
+            prefix=table_params['destination_path'][:table_params['destination_path'].find('*')],
+            bucket_name=project_params['bucket_export_name'],
+            **default_args
+        )
+
+        drop_table = BigQueryDropTableOperator(
+            project_id=project_params['project_id'],
+            dataset_id=project_params['dataset_id'],
+            table_id=table,
+            **default_args
+        )
+
+        generate_table = BigQueryOperator(
+            task_id='generate_table_{}'.format(table),
+            sql=table_params['query'],
+            write_disposition='WRITE_TRUNCATE',
+            destination_dataset_table='{}.{}'.format(project_params['dataset_id'], table),
+            use_legacy_sql=False,
+            **default_args
+        )
+
+        export_table = BigQueryToCloudStorageOperator(
+            task_id='export_table_{}'.format(table),
+            source_project_dataset_table='{}.{}'.format(project_params['dataset_id'], table),
+            destination_cloud_storage_uris='gs://{0}/{1}'.format(project_params['bucket_export_name'], table_params['destination_path']),
+            print_header=True,
+            **default_args
+        )
+
+        begin_task >> check >> clean_gcs >> drop_table >> generate_table >> export_table >> end_task
+    
+    return _create_subdag(
+        _internal,
+        parent_dag,
+        table,
+        table,
+        default_args
+    )
+
 # INTERNALS END
 
 # EXTERNALS BEGIN
@@ -383,6 +448,14 @@ def create_simple_pyspark_subdag(parent_dag, project_params, zone, region,
         job_name,
         default_args,
         trigger_rule='all_done'
+    )
+
+def create_query_export_to_gcs(parent_dag, project_params, table_params, default_args):
+    return _create_query_export_to_gcs(
+        parent_dag,
+        project_params,
+        table_params,
+        default_args
     )
 
 # EXTERNALS END
