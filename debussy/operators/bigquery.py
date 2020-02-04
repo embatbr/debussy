@@ -11,9 +11,10 @@ from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.contrib.operators.bigquery_operator import BigQueryOperator
 from airflow.contrib.operators.bigquery_operator import BigQueryCreateEmptyTableOperator
+from airflow.contrib.operators.bigquery_check_operator import BigQueryCheckOperator
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, SkipMixin
 
 class BigQueryDropTableOperator(BaseOperator):
     """Operator that drops a table in BigQuery. Should only be used before v1.10.3 of Airflow, when
@@ -380,3 +381,21 @@ FROM
         result = bq_cursor.fetchall()
         # getting the 1st cell of the 1st row of the resultset
         return result[0][0]
+
+class BigQueryShortCircuitOperator(BigQueryCheckOperator, SkipMixin):
+    def __init__(self, *args, **kwargs):
+        BigQueryCheckOperator.__init__(self, *args, **kwargs)
+    
+    def execute(self, context):
+        try:
+            BigQueryCheckOperator.execute(self, context)
+        except AirflowException as e:
+            self.log.info('Skipping downstream tasks...')
+
+            downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+            self.log.debug("Downstream task_ids %s", downstream_tasks)
+
+            if downstream_tasks:
+                self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
+        
+        return True
